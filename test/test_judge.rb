@@ -77,6 +77,17 @@ class TestJudge < Minitest::Test
     assert_equal "You are a judge.", chat.last_system_prompt
   end
 
+  def test_call_uses_system_instructions_instead_of_attachments
+    chat = RubyLLMStub::FakeChat.new(response_content: '{"score": 0.9}')
+    RubyLLMStub.fake_chat = chat
+
+    judge = RubricLLM::Judge.new(config: RubricLLM.config)
+    judge.call(system_prompt: "You are a judge.", user_prompt: "Evaluate this.")
+
+    assert_nil chat.last_attachments
+    assert_equal "You are a judge.", chat.last_system_prompt
+  end
+
   def test_call_forwards_max_tokens
     chat = RubyLLMStub::FakeChat.new(response_content: '{"score": 0.9}')
     RubyLLMStub.fake_chat = chat

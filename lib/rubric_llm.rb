@@ -26,8 +26,10 @@ module RubricLLM
     end
 
     def configure
-      yield(config)
-      config.validate!
+      new_config = Config.new(**config.to_h)
+      yield(new_config)
+      new_config.validate!
+      @config = new_config
     end
 
     def reset_configuration!
@@ -86,6 +88,7 @@ module RubricLLM
     private
 
     def evaluate_sample(evaluator, sample)
+      sample = normalize_sample(sample)
       evaluator.call(
         question: sample[:question],
         answer: sample[:answer],
@@ -121,6 +124,10 @@ module RubricLLM
       return config unless custom_prompt
 
       Config.new(**config.to_h.compact, custom_prompt:)
+    end
+
+    def normalize_sample(sample)
+      sample.transform_keys(&:to_sym)
     end
   end
 end

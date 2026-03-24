@@ -22,7 +22,8 @@ module RubricLLM
         chat.with_params(max_tokens: config.max_tokens)
 
         full_system_prompt = build_system_prompt(system_prompt)
-        response = chat.ask(user_prompt, with: full_system_prompt)
+        chat.with_instructions(full_system_prompt)
+        response = chat.ask(user_prompt)
         parse_json(response.content)
       rescue StandardError => e
         raise JudgeError, "Judge call failed: #{e.message}" if attempts > config.max_retries

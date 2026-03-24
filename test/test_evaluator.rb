@@ -123,4 +123,21 @@ class TestEvaluator < Minitest::Test
       assert_equal "q#{i + 1}", result.sample[:question]
     end
   end
+
+  def test_evaluate_batch_accepts_string_keyed_samples
+    stub_judge_response('{"score": 0.9, "reasoning": "ok"}')
+    dataset = [
+      { "question" => "q1", "answer" => "a1", "context" => ["c1"], "ground_truth" => "gt1" },
+      { "question" => "q2", "answer" => "a2", "context" => ["c2"], "ground_truth" => "gt2" }
+    ]
+
+    report = RubricLLM.evaluate_batch(dataset, metrics: [RubricLLM::Metrics::Relevance])
+    questions = report.results.map { |result| result.sample[:question] }
+
+    assert_equal 2, report.results.size
+    assert_equal %w[q1 q2], questions
+    report.results.each do |result|
+      assert_in_delta 0.9, result.scores[:relevance]
+    end
+  end
 end
