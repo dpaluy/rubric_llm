@@ -102,40 +102,54 @@ module RubricLLM
       return 0.0 if x <= 0.0
       return 1.0 if x >= 1.0
 
-      ln_beta = Math.lgamma(a)[0] + Math.lgamma(b)[0] - Math.lgamma(a + b)[0]
-      front = Math.exp((a * Math.log(x)) + (b * Math.log(1.0 - x)) - ln_beta) / a
+      ln_beta = Math.lgamma(a + b)[0] - Math.lgamma(a)[0] - Math.lgamma(b)[0]
+      front = Math.exp(ln_beta + (a * Math.log(x)) + (b * Math.log(1.0 - x)))
 
-      # Lentz's continued fraction
+      result = if x < ((a + 1.0) / (a + b + 2.0))
+                 front * beta_continued_fraction(a, b, x) / a
+               else
+                 1.0 - ((front * beta_continued_fraction(b, a, 1.0 - x)) / b)
+               end
+
+      result.clamp(0.0, 1.0)
+    end
+
+    def beta_continued_fraction(a, b, x)
+      tiny = 1e-30
+      qab = a + b
+      qap = a + 1.0
+      qam = a - 1.0
+
       c = 1.0
-      d = 1.0 - ((a + b) * x / (a + 1.0))
-      d = 1.0 if d.abs < 1e-30
+      d = 1.0 - ((qab * x) / qap)
+      d = tiny if d.abs < tiny
       d = 1.0 / d
-      f = d
+      fraction = d
 
       (1..200).each do |m|
-        # Even step
-        numerator = m * (b - m) * x / ((a + (2 * m) - 1) * (a + (2 * m)))
-        d = 1.0 + (numerator * d)
-        d = 1e-30 if d.abs < 1e-30
-        c = 1.0 + (numerator / c)
-        c = 1e-30 if c.abs < 1e-30
-        d = 1.0 / d
-        f *= c * d
+        m2 = 2 * m
 
-        # Odd step
-        numerator = -(a + m) * (a + b + m) * x / ((a + (2 * m)) * (a + (2 * m) + 1))
+        numerator = (m * (b - m) * x) / ((qam + m2) * (a + m2))
         d = 1.0 + (numerator * d)
-        d = 1e-30 if d.abs < 1e-30
+        d = tiny if d.abs < tiny
         c = 1.0 + (numerator / c)
-        c = 1e-30 if c.abs < 1e-30
+        c = tiny if c.abs < tiny
+        d = 1.0 / d
+        fraction *= c * d
+
+        numerator = -((a + m) * (qab + m) * x) / ((a + m2) * (qap + m2))
+        d = 1.0 + (numerator * d)
+        d = tiny if d.abs < tiny
+        c = 1.0 + (numerator / c)
+        c = tiny if c.abs < tiny
         d = 1.0 / d
         delta = c * d
-        f *= delta
+        fraction *= delta
 
-        break if (delta - 1.0).abs < 1e-10
+        break if (delta - 1.0).abs < 1e-12
       end
 
-      front * f
+      fraction
     end
 
     def significance_marker(p)

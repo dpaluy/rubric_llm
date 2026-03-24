@@ -149,4 +149,18 @@ class TestConfig < Minitest::Test
       RubricLLM.configure { |c| c.temperature = -5.0 }
     end
   end
+
+  def test_configure_rolls_back_invalid_changes
+    RubricLLM.configure do |c|
+      c.judge_model = "claude-sonnet-4-6"
+      c.temperature = 0.3
+    end
+    original_config = RubricLLM.config.to_h
+
+    assert_raises(RubricLLM::ConfigurationError) do
+      RubricLLM.configure { |c| c.temperature = -5.0 }
+    end
+
+    assert_equal original_config, RubricLLM.config.to_h
+  end
 end

@@ -91,4 +91,10 @@ class TestComparison < Minitest::Test
     assert_in_delta 0.7, result[:mean_b], 0.001
     assert_in_delta 0.15, result[:delta], 0.001
   end
+
+  def test_two_tailed_p_handles_values_close_to_one
+    p_value = @comparison.send(:two_tailed_p, 0.02105086415353341, 72)
+
+    assert_in_delta 0.9832633107858819, p_value, 1e-9
+  end
 end
