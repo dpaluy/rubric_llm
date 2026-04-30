@@ -4,3 +4,4 @@ doc/
 .ruby-lsp/
 *.gem
 Gemfile.lock
+.omx/

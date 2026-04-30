@@ -13,10 +13,6 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 - Add standalone LLM-as-Judge examples for RAG scoring, batch reports, model comparison, custom metrics, and Minitest assertions
 
-### Changed
-
-- Exclude standalone examples from the packaged gem files
-
 ## [0.1.1] - 2026-03-24
 
 ### Fixed
