@@ -27,7 +27,7 @@ gem install rubric_llm
 require "rubric_llm"
 
 RubricLLM.configure do |c|
-  c.judge_model = "gpt-4o"
+  c.judge_model = "gpt-5.5"
   c.judge_provider = :openai
 end
 
@@ -44,6 +44,9 @@ result.correctness       # => 0.98
 result.overall           # => 0.94
 result.pass?             # => true
 ```
+
+For runnable LLM-as-Judge examples, including RAG scoring, batch pass/fail output, model comparison, custom metrics, and live
+Minitest assertions, see [examples/README.md](examples/README.md).
 
 ## Configuration
 
@@ -350,3 +353,5 @@ Bug reports and pull requests are welcome on [GitHub](https://github.com/dpaluy/
 ## License
 
 [MIT](LICENSE.txt)
+
+Supported by [Majestic Labs](https://majesticlabs.dev/).
