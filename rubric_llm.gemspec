@@ -29,7 +29,7 @@ Gem::Specification.new do |spec|
         f.start_with?(*%w[
                         test/ spec/ bin/ Gemfile .gitignore .github/ .rubocop.yml
                         docs/ .agents/ AGENTS.md CLAUDE.md Rakefile .yardopts
-                        .ruby-version .tool-versions skills/
+                        .ruby-version .tool-versions skills/ examples/
                       ])
     end
   end
