@@ -3,6 +3,18 @@
 These examples are plain Ruby scripts for trying RubricLLM against live LLM-as-Judge calls. They are separate from the root
 README so adoption examples can grow without making the main gem documentation noisy.
 
+## Outline
+
+- [Setup](#setup)
+- [Judge vs Evaluated Model](#judge-vs-evaluated-model)
+- [Example Guide](#example-guide)
+- [`llm_as_judge_rag.rb`](#llm_as_judge_ragrb)
+- [`llm_as_judge_batch.rb`](#llm_as_judge_batchrb)
+- [`llm_as_judge_model_comparison.rb`](#llm_as_judge_model_comparisonrb)
+- [`llm_as_judge_custom_metric.rb`](#llm_as_judge_custom_metricrb)
+- [`llm_as_judge_minitest.rb`](#llm_as_judge_minitestrb)
+- [Reading Batch Output](#reading-batch-output)
+
 ## Setup
 
 Install dependencies from the project root:
