@@ -49,7 +49,8 @@ class TestEvaluator < Minitest::Test
     result = RubricLLM.evaluate(
       question: "test",
       answer: "test",
-      metrics: [RubricLLM::Metrics::Relevance]
+      metrics: [RubricLLM::Metrics::Relevance],
+      config: RubricLLM::Config.new(max_retries: 0, retry_base_delay: 0.0)
     )
 
     assert_nil result.scores[:relevance]

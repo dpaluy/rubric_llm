@@ -16,7 +16,7 @@ module RubyLLMStub
 
   class FakeChat
     attr_accessor :response_content
-    attr_reader :last_system_prompt, :last_user_prompt, :last_params, :last_attachments, :call_count
+    attr_reader :last_system_prompt, :last_user_prompt, :last_params, :last_attachments, :last_schema, :call_count
 
     def initialize(response_content: '{"score": 0.9, "reasoning": "test"}', fail_times: 0, error_class: RuntimeError)
       @response_content = response_content
@@ -58,6 +58,11 @@ module RubyLLMStub
 
     def with_params(**params)
       @last_params = params
+      self
+    end
+
+    def with_schema(schema)
+      @last_schema = schema
       self
     end
   end
