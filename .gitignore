@@ -5,3 +5,4 @@ doc/
 *.gem
 Gemfile.lock
 .omx/
+wiki/
