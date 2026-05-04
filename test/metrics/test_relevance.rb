@@ -13,19 +13,25 @@ class TestRelevance < Minitest::Test
     assert_in_delta 0.85, result[:score]
   end
 
-  def test_clamps_score_above_one
+  def test_raises_for_score_above_one
     stub_judge_response('{"score": 1.5, "reasoning": "over"}')
-    metric = RubricLLM::Metrics::Relevance.new(judge: RubricLLM::Judge.new(config: RubricLLM.config))
-    result = metric.call(question: "q", answer: "a")
+    metric = RubricLLM::Metrics::Relevance.new(judge: RubricLLM::Judge.new(config: no_retry_config))
 
-    assert_in_delta 1.0, result[:score]
+    error = assert_raises(RubricLLM::JudgeError) { metric.call(question: "q", answer: "a") }
+    assert_includes error.message, "between 0.0 and 1.0"
   end
 
-  def test_clamps_score_below_zero
+  def test_raises_for_score_below_zero
     stub_judge_response('{"score": -0.3, "reasoning": "under"}')
-    metric = RubricLLM::Metrics::Relevance.new(judge: RubricLLM::Judge.new(config: RubricLLM.config))
-    result = metric.call(question: "q", answer: "a")
+    metric = RubricLLM::Metrics::Relevance.new(judge: RubricLLM::Judge.new(config: no_retry_config))
 
-    assert_in_delta 0.0, result[:score]
+    error = assert_raises(RubricLLM::JudgeError) { metric.call(question: "q", answer: "a") }
+    assert_includes error.message, "between 0.0 and 1.0"
+  end
+
+  private
+
+  def no_retry_config
+    RubricLLM::Config.new(max_retries: 0, retry_base_delay: 0.0)
   end
 end

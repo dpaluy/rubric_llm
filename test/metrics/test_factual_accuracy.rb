@@ -35,11 +35,17 @@ class TestFactualAccuracy < Minitest::Test
     assert_equal "No ground truth provided", result[:details][:error]
   end
 
-  def test_handles_nil_judge_response
+  def test_raises_for_empty_judge_response
     stub_judge_response("")
-    metric = RubricLLM::Metrics::FactualAccuracy.new(judge: RubricLLM::Judge.new(config: RubricLLM.config))
-    result = metric.call(answer: "a", ground_truth: "b")
+    metric = RubricLLM::Metrics::FactualAccuracy.new(judge: RubricLLM::Judge.new(config: no_retry_config))
 
-    assert_nil result[:score]
+    error = assert_raises(RubricLLM::JudgeError) { metric.call(answer: "a", ground_truth: "b") }
+    assert_includes error.message, "empty"
+  end
+
+  private
+
+  def no_retry_config
+    RubricLLM::Config.new(max_retries: 0, retry_base_delay: 0.0)
   end
 end
