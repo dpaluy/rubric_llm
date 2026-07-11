@@ -56,6 +56,7 @@ module RubricLLM
     #   report = RubricLLM.evaluate_batch(dataset)
     #   report = RubricLLM.evaluate_batch(dataset, concurrency: 4)
     def evaluate_batch(dataset, metrics: nil, config: self.config, custom_prompt: nil, concurrency: nil)
+      validate_dataset!(dataset)
       config = apply_custom_prompt(config, custom_prompt)
       pool_size = concurrency || config.concurrency
       start_time = Process.clock_gettime(Process::CLOCK_MONOTONIC)
@@ -86,6 +87,22 @@ module RubricLLM
     end
 
     private
+
+    def validate_dataset!(dataset)
+      dataset.each_with_index do |sample, index|
+        raise ArgumentError, "sample at index #{index} is not a Hash" unless sample.is_a?(Hash)
+
+        question_present = sample.key?(:question) || sample.key?("question")
+        answer_present = sample.key?(:answer) || sample.key?("answer")
+        raise ArgumentError, "sample at index #{index} is missing :question" unless question_present
+        raise ArgumentError, "sample at index #{index} is missing :answer" unless answer_present
+
+        question_provided = !sample[:question].nil? || !sample["question"].nil?
+        answer_provided = !sample[:answer].nil? || !sample["answer"].nil?
+        raise ArgumentError, "sample at index #{index} has nil :question" unless question_provided
+        raise ArgumentError, "sample at index #{index} has nil :answer" unless answer_provided
+      end
+    end
 
     def evaluate_sample(evaluator, sample)
       sample = normalize_sample(sample)
