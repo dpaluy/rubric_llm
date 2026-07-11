@@ -19,12 +19,12 @@ class TestFaithfulness < Minitest::Test
     assert result[:details][:reasoning]
   end
 
-  def test_handles_nil_judge_response
+  def test_raises_for_empty_judge_response
     stub_judge_response("")
-    metric = RubricLLM::Metrics::Faithfulness.new(judge: RubricLLM::Judge.new(config: RubricLLM.config))
-    result = metric.call(question: "q", answer: "a", context: ["c"])
+    metric = RubricLLM::Metrics::Faithfulness.new(judge: RubricLLM::Judge.new(config: no_retry_config))
 
-    assert_nil result[:score]
+    error = assert_raises(RubricLLM::JudgeError) { metric.call(question: "q", answer: "a", context: ["c"]) }
+    assert_includes error.message, "empty"
   end
 
   def test_nil_without_context
@@ -37,5 +37,11 @@ class TestFaithfulness < Minitest::Test
     assert_nil result[:score]
     assert_equal "No context provided", result[:details][:error]
     assert_nil chat.last_user_prompt
+  end
+
+  private
+
+  def no_retry_config
+    RubricLLM::Config.new(max_retries: 0, retry_base_delay: 0.0)
   end
 end

@@ -35,10 +35,8 @@ module RubricLLM
       private
 
       def normalize(result)
-        return { score: nil, details: result } unless result.is_a?(Hash) && result["score"]
-
         {
-          score: Float(result["score"]).clamp(0.0, 1.0),
+          score: Float(result["score"]),
           details: {
             covered_facts: result["covered_facts"],
             reasoning: result["reasoning"]

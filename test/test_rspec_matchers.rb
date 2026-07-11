@@ -34,12 +34,12 @@ class TestRSpecMatchers < Minitest::Test
     assert_includes matcher.failure_message, "0.9"
   end
 
-  def test_faithfulness_matcher_nil_score
+  def test_faithfulness_matcher_raises_for_empty_judge_response
     stub_judge_response("")
-    matcher = RubricLLM::RSpecMatchers::FaithfulnessMatcher.new(["context"])
+    matcher = RubricLLM::RSpecMatchers::FaithfulnessMatcher.new(["context"]).with_config(no_retry_config)
 
-    refute matcher.matches?("answer")
-    assert_includes matcher.failure_message, "nil"
+    error = assert_raises(RubricLLM::JudgeError) { matcher.matches?("answer") }
+    assert_includes error.message, "empty"
   end
 
   def test_faithfulness_negated_message
@@ -117,11 +117,12 @@ class TestRSpecMatchers < Minitest::Test
     assert_includes matcher.failure_message, "hallucination"
   end
 
-  def test_hallucination_matcher_nil_score_counts_as_hallucination
+  def test_hallucination_matcher_raises_for_empty_judge_response
     stub_judge_response("")
-    matcher = RubricLLM::RSpecMatchers::HallucinationMatcher.new(["context"])
+    matcher = RubricLLM::RSpecMatchers::HallucinationMatcher.new(["context"]).with_config(no_retry_config)
 
-    assert matcher.matches?("answer")
+    error = assert_raises(RubricLLM::JudgeError) { matcher.matches?("answer") }
+    assert_includes error.message, "empty"
   end
 
   def test_hallucination_negated_message
@@ -153,5 +154,11 @@ class TestRSpecMatchers < Minitest::Test
     assert_respond_to obj, :be_correct_for
     assert_respond_to obj, :be_relevant_to
     assert_respond_to obj, :hallucinate_from
+  end
+
+  private
+
+  def no_retry_config
+    RubricLLM::Config.new(max_retries: 0, retry_base_delay: 0.0)
   end
 end

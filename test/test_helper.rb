@@ -1,6 +1,7 @@
 # frozen_string_literal: true
 
 $LOAD_PATH.unshift File.expand_path("../lib", __dir__)
+require "json"
 require "rubric_llm"
 require "minitest/autorun"
 
@@ -16,7 +17,7 @@ module RubyLLMStub
 
   class FakeChat
     attr_accessor :response_content
-    attr_reader :last_system_prompt, :last_user_prompt, :last_params, :last_attachments, :call_count
+    attr_reader :last_system_prompt, :last_user_prompt, :last_params, :last_attachments, :last_schema, :call_count
 
     def initialize(response_content: '{"score": 0.9, "reasoning": "test"}', fail_times: 0, error_class: RuntimeError)
       @response_content = response_content
@@ -53,12 +54,26 @@ module RubyLLMStub
 
       raise @error_class, "transient failure" if @call_count <= @fail_times
 
-      FakeResponse.new(response_content)
+      content = @last_schema ? normalize_schema_response(response_content) : response_content
+      FakeResponse.new(content)
     end
 
     def with_params(**params)
       @last_params = params
       self
+    end
+
+    def with_schema(schema)
+      @last_schema = schema
+      self
+    end
+
+    private
+
+    def normalize_schema_response(content)
+      JSON.parse(content)
+    rescue JSON::ParserError
+      content
     end
   end
 

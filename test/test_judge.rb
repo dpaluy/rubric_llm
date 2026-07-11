@@ -31,19 +31,22 @@ class TestJudge < Minitest::Test
   def test_parse_json_nil_input
     judge = RubricLLM::Judge.new(config: RubricLLM.config)
 
-    assert_nil judge.parse_json(nil)
+    error = assert_raises(RubricLLM::JudgeError) { judge.parse_json(nil) }
+    assert_includes error.message, "empty"
   end
 
   def test_parse_json_empty_input
     judge = RubricLLM::Judge.new(config: RubricLLM.config)
 
-    assert_nil judge.parse_json("")
+    error = assert_raises(RubricLLM::JudgeError) { judge.parse_json("") }
+    assert_includes error.message, "empty"
   end
 
   def test_parse_json_unparseable
     judge = RubricLLM::Judge.new(config: RubricLLM.config)
 
-    assert_nil judge.parse_json("This is not JSON at all")
+    error = assert_raises(RubricLLM::JudgeError) { judge.parse_json("This is not JSON at all") }
+    assert_includes error.message, "not valid JSON"
   end
 
   def test_call_returns_parsed_json
