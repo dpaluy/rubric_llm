@@ -37,5 +37,5 @@ Gem::Specification.new do |spec|
   spec.require_paths = ["lib"]
   spec.extra_rdoc_files = Dir["README.md", "CHANGELOG.md", "LICENSE.txt"]
 
-  spec.add_dependency "ruby_llm", "~> 1.0"
+  spec.add_dependency "ruby_llm", "~> 1.13"
 end
