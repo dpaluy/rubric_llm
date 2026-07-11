@@ -14,6 +14,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - Enforce schema-backed judge responses through RubyLLM structured output when supported
 - Raise `RubricLLM::JudgeError` for empty, malformed, missing-score, non-numeric, or out-of-range judge responses instead of returning `nil` or clamping invalid scores
 - Require `ruby_llm ~> 1.13` for named schema payload support in structured output
+- Record judge failures per metric in `RubricLLM.evaluate` and `RubricLLM.evaluate_batch` as a `nil` score with the error message in details and continue the run, while non-judge errors propagate
+- Remove dead score clamping and nil-response guards from LLM metrics now that the judge validates the response contract
 
 ## [0.1.2] - 2026-04-30
 

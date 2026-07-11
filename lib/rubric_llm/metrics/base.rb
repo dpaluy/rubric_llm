@@ -19,10 +19,7 @@ module RubricLLM
       private
 
       def judge_eval(system_prompt:, user_prompt:)
-        result = judge.call(system_prompt:, user_prompt:)
-        return { score: nil, details: { error: "No response from judge" } } if result.nil?
-
-        result
+        judge.call(system_prompt:, user_prompt:)
       end
     end
   end

@@ -30,7 +30,7 @@ module RubricLLM
         result = metric.call(question:, answer:, context:, ground_truth:)
         scores[name] = result[:score]
         details[name] = result[:details]
-      rescue StandardError => e
+      rescue JudgeError => e
         scores[name] = nil
         details[name] = { error: e.message }
       end

@@ -5,6 +5,14 @@ require "test_helper"
 class TestEvaluator < Minitest::Test
   include TestSetup
 
+  class BrokenMetric
+    def initialize(judge:); end
+
+    def call(**)
+      raise "programming error"
+    end
+  end
+
   def test_evaluate_returns_result
     stub_judge_response('{"score": 0.9, "reasoning": "good"}')
     result = RubricLLM.evaluate(
@@ -45,7 +53,7 @@ class TestEvaluator < Minitest::Test
   end
 
   def test_evaluate_handles_judge_failure
-    stub_judge_response("completely broken response")
+    stub_judge_response("")
     result = RubricLLM.evaluate(
       question: "test",
       answer: "test",
@@ -54,6 +62,15 @@ class TestEvaluator < Minitest::Test
     )
 
     assert_nil result.scores[:relevance]
+    assert_match(/empty/i, result.details[:relevance][:error])
+  end
+
+  def test_evaluate_propagates_non_judge_errors
+    error = assert_raises(RuntimeError) do
+      RubricLLM::Evaluator.new(config: RubricLLM::Config.new, metrics: [BrokenMetric]).call(question: "test", answer: "test")
+    end
+
+    assert_equal "programming error", error.message
   end
 
   def test_evaluate_with_custom_prompt
