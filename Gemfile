@@ -4,7 +4,6 @@ source "https://rubygems.org"
 
 gemspec
 
-gem "csv"
 gem "minitest"
 gem "rake"
 gem "rdoc"

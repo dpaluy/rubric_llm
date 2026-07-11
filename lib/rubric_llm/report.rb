@@ -42,7 +42,7 @@ module RubricLLM
     end
 
     def export_csv(path)
-      require "csv" # optional dependency — add `gem "csv"` to your Gemfile if missing
+      require "csv"
       metrics = all_metric_names
       CSV.open(path, "w") do |csv|
         csv << ["question", "answer", "overall", *metrics]
