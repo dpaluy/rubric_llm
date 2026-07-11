@@ -43,7 +43,8 @@ module RubricLLM
         full_system_prompt = build_system_prompt(system_prompt)
         chat.with_instructions(full_system_prompt)
         response = chat.ask(user_prompt)
-        validate_response!(parse_json(response.content))
+        content = response.content
+        validate_response!(content.is_a?(Hash) ? content : parse_json(content))
       rescue StandardError => e
         if attempts > config.max_retries
           raise e if e.is_a?(JudgeError)

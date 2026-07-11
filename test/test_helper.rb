@@ -1,6 +1,7 @@
 # frozen_string_literal: true
 
 $LOAD_PATH.unshift File.expand_path("../lib", __dir__)
+require "json"
 require "rubric_llm"
 require "minitest/autorun"
 
@@ -53,7 +54,8 @@ module RubyLLMStub
 
       raise @error_class, "transient failure" if @call_count <= @fail_times
 
-      FakeResponse.new(response_content)
+      content = @last_schema ? normalize_schema_response(response_content) : response_content
+      FakeResponse.new(content)
     end
 
     def with_params(**params)
@@ -64,6 +66,14 @@ module RubyLLMStub
     def with_schema(schema)
       @last_schema = schema
       self
+    end
+
+    private
+
+    def normalize_schema_response(content)
+      JSON.parse(content)
+    rescue JSON::ParserError
+      content
     end
   end
 

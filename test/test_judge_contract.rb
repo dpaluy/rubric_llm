@@ -15,6 +15,26 @@ class TestJudgeContract < Minitest::Test
     assert_equal RubricLLM::Judge::METRIC_RESPONSE_SCHEMA, chat.last_schema
   end
 
+  def test_call_accepts_schema_parsed_hash_content
+    chat = RubyLLMStub::FakeChat.new(response_content: '{"score": 0.95, "reasoning": "excellent"}')
+    RubyLLMStub.fake_chat = chat
+
+    result = judge.call(system_prompt: "test", user_prompt: "test")
+
+    assert_equal({ "score" => 0.95, "reasoning" => "excellent" }, result)
+  end
+
+  def test_call_raises_for_schema_parsed_hash_missing_score
+    chat = RubyLLMStub::FakeChat.new(response_content: '{"reasoning": "missing"}')
+    RubyLLMStub.fake_chat = chat
+
+    error = assert_raises(RubricLLM::JudgeError) do
+      judge.call(system_prompt: "test", user_prompt: "test")
+    end
+
+    assert_includes error.message, "missing required score"
+  end
+
   def test_call_raises_for_malformed_json
     chat = RubyLLMStub::FakeChat.new(response_content: "This is not JSON")
     RubyLLMStub.fake_chat = chat
