@@ -51,7 +51,7 @@ module RubricLLM
     end
 
     def hit_rate
-      retrieved.any? { |doc| relevant.include?(doc) } ? 1.0 : 0.0
+      relevant.intersect?(retrieved) ? 1.0 : 0.0
     end
 
     def to_h
