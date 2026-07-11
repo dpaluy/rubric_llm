@@ -5,6 +5,17 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [0.4.0] - 2026-07-11
+
+### Added
+
+- `RubricLLM.evaluate_batch` validates every sample upfront (must be a Hash with non-nil `:question` and `:answer`, string or symbol keys) and raises `ArgumentError` with the offending index before any LLM call, so sequential and concurrent modes fail identically and without API spend
+
+### Changed
+
+- Add `csv` as a runtime dependency; `csv` moved from a default gem to a bundled gem in Ruby 3.4, so consumers previously hit a `LoadError` on `Report#export_csv`
+- Require `ruby_llm ~> 1.16`
+
 ## [0.3.0] - 2026-07-11
 
 ### Changed
