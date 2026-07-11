@@ -16,7 +16,7 @@ module RubricLLM
     end
 
     def worst(n)
-      results.sort_by { |r| r.overall || Float::INFINITY }.first(n)
+      results.sort_by { |r| r.overall || -Float::INFINITY }.first(n)
     end
 
     def failures(threshold: 0.8)
@@ -33,6 +33,10 @@ module RubricLLM
         lines << format("  %-20s  mean=%.3f  std=%.3f  min=%.3f  max=%.3f  n=%d",
                         metric, stats[:mean], stats[:std], stats[:min], stats[:max], stats[:count])
       end
+
+      error_count = error_counts.values.sum
+      affected_samples = results.count { |r| r.errors.any? }
+      lines << "Errors: #{error_count} metric errors across #{affected_samples} samples" if error_count.positive?
 
       lines.join("\n")
     end
@@ -72,12 +76,19 @@ module RubricLLM
       {
         summary: metric_stats,
         duration:,
+        errors: error_counts,
         results: results.map(&:to_h)
       }
     end
 
     def all_metric_names
       results.flat_map { |r| r.scores.keys }.uniq
+    end
+
+    def error_counts
+      counts = Hash.new(0)
+      results.each { |r| r.errors.each_key { |name| counts[name] += 1 } }
+      counts
     end
 
     def compute_stats

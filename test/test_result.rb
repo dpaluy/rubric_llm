@@ -58,5 +58,44 @@ class TestResult < Minitest::Test
 
     assert_equal({ a: 0.9 }, hash[:scores])
     assert_in_delta 0.9, hash[:overall]
+    assert_equal({}, hash[:errors])
+  end
+
+  def test_all_nil_scores_are_invalid_and_fail
+    result = RubricLLM::Result.new(
+      scores: { faithfulness: nil },
+      details: { faithfulness: { error: "judge timeout" } }
+    )
+
+    assert_nil result.overall
+    refute_predicate result, :pass?
+    refute_predicate result, :valid?
+    assert_equal({ faithfulness: "judge timeout" }, result.errors)
+  end
+
+  def test_partial_failure_fails_pass_despite_high_overall
+    result = RubricLLM::Result.new(
+      scores: { a: nil, b: 1.0 },
+      details: { a: { error: "boom" } }
+    )
+
+    assert_in_delta 1.0, result.overall
+    refute_predicate result, :pass?
+    assert_equal({ a: "boom" }, result.errors)
+  end
+
+  def test_valid_with_no_errors
+    result = RubricLLM::Result.new(scores: { a: 0.9 }, details: {})
+
+    assert_predicate result, :valid?
+    assert_equal({}, result.errors)
+    assert result.pass?(threshold: 0.8)
+  end
+
+  def test_errors_ignores_non_hash_details
+    result = RubricLLM::Result.new(scores: { a: 0.9 }, details: { a: "some note" })
+
+    assert_equal({}, result.errors)
+    assert_predicate result, :valid?
   end
 end
