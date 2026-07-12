@@ -6,7 +6,7 @@ Lightweight LLM evaluation framework for Ruby, inspired by [DeepEval](https://gi
 [![CI](https://github.com/dpaluy/rubric_llm/actions/workflows/ci.yml/badge.svg)](https://github.com/dpaluy/rubric_llm/actions/workflows/ci.yml)
 [![Wiki](https://img.shields.io/badge/docs-wiki-blue)](https://github.com/dpaluy/rubric_llm/wiki)
 
-Provider-agnostic evaluation with pluggable metrics, statistical A/B comparison, and test framework integration — no Rails, no ActiveRecord, no UI. Works anywhere Ruby runs.
+Provider-agnostic evaluation with pluggable metrics, statistical A/B comparison, and test framework integration: no Rails, no ActiveRecord, no UI. Works anywhere Ruby runs.
 
 ## Installation
 
@@ -116,14 +116,14 @@ These metrics use a judge LLM to evaluate quality. Each sends a structured promp
 | **Faithfulness** | Is every claim in the answer supported by the context? | `context` |
 
 ```ruby
-# Only context — gets faithfulness, relevance, context_precision
+# Only context (gets faithfulness, relevance, context_precision)
 result = RubricLLM.evaluate(
   question: "How does photosynthesis work?",
   answer: "Plants convert sunlight into energy.",
   context: ["Photosynthesis is the process by which plants convert light energy into chemical energy."]
 )
 
-# With ground truth — gets all metrics
+# With ground truth (gets all metrics)
 result = RubricLLM.evaluate(
   question: "How does photosynthesis work?",
   answer: "Plants convert sunlight into energy.",
@@ -155,7 +155,7 @@ result.scores[:tone_metric]  # => 0.85
 
 ### Retrieval Metrics
 
-Pure math — no LLM calls, no API key needed.
+Pure math, no LLM calls, no API key needed.
 
 ```ruby
 result = RubricLLM.evaluate_retrieval(
@@ -298,7 +298,7 @@ rescue RubricLLM::Error => e
 end
 ```
 
-Individual metric failures are handled gracefully — a failed metric returns `nil` for the score and includes the error in details:
+Individual metric failures are handled gracefully: a failed metric returns `nil` for the score and includes the error in details:
 
 ```ruby
 result = RubricLLM.evaluate(question: "q", answer: "a")
@@ -317,12 +317,12 @@ bundle exec rubocop
 
 ## Limitations
 
-RubricLLM uses LLM-as-Judge — an LLM scores another LLM's output. This is the industry-standard approach (used by Ragas, DeepEval, ARES), but it means the judge shares the same class of failure modes as the system being evaluated. If the judge hallucinates that an answer is faithful, you get a false positive.
+RubricLLM uses LLM-as-Judge: an LLM scores another LLM's output. This is the industry-standard approach (used by Ragas, DeepEval, ARES), but it means the judge shares the same class of failure modes as the system being evaluated. If the judge hallucinates that an answer is faithful, you get a false positive.
 
 Mitigations built into the framework:
 
 - **Cross-model judging.** Configure a different model as judge than the one being evaluated. Don't let gpt-5.5 grade gpt-5.5.
-- **Retrieval metrics are pure math.** `precision_at_k`, `recall_at_k`, `mrr`, `ndcg` — no LLM involved, no judge bias. See [Why Retrieval Metrics Are Pure Math](https://github.com/dpaluy/rubric_llm/wiki/Why-Retrieval-Metrics-Are-Pure-Math).
+- **Retrieval metrics are pure math.** `precision_at_k`, `recall_at_k`, `mrr`, `ndcg` (no LLM involved, no judge bias). See [Why Retrieval Metrics Are Pure Math](https://github.com/dpaluy/rubric_llm/wiki/Why-Retrieval-Metrics-Are-Pure-Math).
 - **Custom non-LLM metrics.** Subclass `Metrics::Base` with regex checks, embedding similarity, or any deterministic logic.
 - **Statistical comparison.** A/B testing with paired t-tests surfaces systematic judge bias across runs.
 
@@ -347,8 +347,8 @@ Ruby has two LLM evaluation options today. Neither fits most use cases:
 
 Deep dives live in the [project wiki](https://github.com/dpaluy/rubric_llm/wiki):
 
-- [Understanding A/B Comparison](https://github.com/dpaluy/rubric_llm/wiki/Understanding-A-B-Comparison) — what paired t-tests and p-values mean for model comparison
-- [Why Retrieval Metrics Are Pure Math](https://github.com/dpaluy/rubric_llm/wiki/Why-Retrieval-Metrics-Are-Pure-Math) — why `precision_at_k`, `recall_at_k`, `mrr`, `ndcg`, and `hit_rate` are deterministic and bias-free
+- [Understanding A/B Comparison](https://github.com/dpaluy/rubric_llm/wiki/Understanding-A-B-Comparison): what paired t-tests and p-values mean for model comparison
+- [Why Retrieval Metrics Are Pure Math](https://github.com/dpaluy/rubric_llm/wiki/Why-Retrieval-Metrics-Are-Pure-Math): why `precision_at_k`, `recall_at_k`, `mrr`, `ndcg`, and `hit_rate` are deterministic and bias-free
 
 ## Requirements
 
