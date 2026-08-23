@@ -4,7 +4,7 @@ require "rubric_llm"
 
 module RubricLLM
   module Assertions
-    def assert_faithful(answer, context, question: "", threshold: 0.8, config: RubricLLM.config)
+    def assert_faithful(answer, context, question: "", threshold: DEFAULT_THRESHOLD, config: RubricLLM.config)
       result = evaluate_metric(Metrics::Faithfulness, question:, answer:, context:, config:)
       score = result[:score]
 
@@ -12,7 +12,7 @@ module RubricLLM
              "Expected faithfulness >= #{threshold}, got #{score || "nil"}.#{failure_details(result)}"
     end
 
-    def assert_relevant(question, answer, threshold: 0.8, config: RubricLLM.config)
+    def assert_relevant(question, answer, threshold: DEFAULT_THRESHOLD, config: RubricLLM.config)
       result = evaluate_metric(Metrics::Relevance, question:, answer:, config:)
       score = result[:score]
 
@@ -20,7 +20,7 @@ module RubricLLM
              "Expected relevance >= #{threshold}, got #{score || "nil"}.#{failure_details(result)}"
     end
 
-    def assert_correct(answer, ground_truth, question: "", threshold: 0.8, config: RubricLLM.config)
+    def assert_correct(answer, ground_truth, question: "", threshold: DEFAULT_THRESHOLD, config: RubricLLM.config)
       result = evaluate_metric(Metrics::Correctness, question:, answer:, ground_truth:, config:)
       score = result[:score]
 
@@ -28,7 +28,7 @@ module RubricLLM
              "Expected correctness >= #{threshold}, got #{score || "nil"}.#{failure_details(result)}"
     end
 
-    def refute_hallucination(answer, context, question: "", threshold: 0.8, config: RubricLLM.config)
+    def refute_hallucination(answer, context, question: "", threshold: DEFAULT_THRESHOLD, config: RubricLLM.config)
       result = evaluate_metric(Metrics::Faithfulness, question:, answer:, context:, config:)
       score = result[:score]
 

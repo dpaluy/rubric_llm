@@ -27,6 +27,18 @@ class TestResult < Minitest::Test
     assert_nil result.overall
   end
 
+  def test_default_threshold_constant_is_pass_default
+    assert_in_delta(0.8, RubricLLM::DEFAULT_THRESHOLD)
+
+    below = RubricLLM::Result.new(scores: { a: 0.79 }, details: {})
+
+    refute_predicate below, :pass?
+
+    boundary = RubricLLM::Result.new(scores: { a: RubricLLM::DEFAULT_THRESHOLD }, details: {})
+
+    assert_predicate boundary, :pass?
+  end
+
   def test_pass_above_threshold
     result = RubricLLM::Result.new(scores: { a: 0.9 }, details: {})
 

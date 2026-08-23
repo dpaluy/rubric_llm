@@ -17,7 +17,7 @@ module RubricLLM
       valid.sum / valid.size.to_f
     end
 
-    def pass?(threshold: 0.8)
+    def pass?(threshold: DEFAULT_THRESHOLD)
       return false unless valid?
 
       score = overall
