@@ -47,17 +47,19 @@ class TestJudgeContract < Minitest::Test
     assert_equal 1, chat.call_count
   end
 
-  def test_call_retries_judge_contract_failures
+  # A contract violation is deterministic at the default temperature of 0.0,
+  # so retrying it only spends tokens to get the same bad response.
+  def test_call_does_not_retry_judge_contract_failures
     chat = RubyLLMStub::FakeChat.new(response_content: "This is not JSON")
     RubyLLMStub.fake_chat = chat
 
-    retrying_judge = RubricLLM::Judge.new(config: RubricLLM::Config.new(max_retries: 1, retry_base_delay: 0.0))
+    retrying_judge = RubricLLM::Judge.new(config: RubricLLM::Config.new(max_retries: 3, retry_base_delay: 0.0))
 
     assert_raises(RubricLLM::JudgeError) do
       retrying_judge.call(system_prompt: "test", user_prompt: "test")
     end
 
-    assert_equal 2, chat.call_count
+    assert_equal 1, chat.call_count
   end
 
   def test_call_raises_for_missing_score

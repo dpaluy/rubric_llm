@@ -5,6 +5,7 @@ require "rubric_llm"
 module RubricLLM
   module Assertions
     def assert_faithful(answer, context, question: "", threshold: DEFAULT_THRESHOLD, config: RubricLLM.config)
+      require_context!(context)
       result = evaluate_metric(Metrics::Faithfulness, question:, answer:, context:, config:)
       score = result[:score]
 
@@ -29,6 +30,7 @@ module RubricLLM
     end
 
     def refute_hallucination(answer, context, question: "", threshold: DEFAULT_THRESHOLD, config: RubricLLM.config)
+      require_context!(context)
       result = evaluate_metric(Metrics::Faithfulness, question:, answer:, context:, config:)
       score = result[:score]
 
@@ -37,6 +39,10 @@ module RubricLLM
     end
 
     private
+
+    def require_context!(context)
+      Metrics::Base.require_context!(context)
+    end
 
     def evaluate_metric(metric_class, config:, **)
       judge = Judge.new(config:)

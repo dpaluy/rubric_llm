@@ -90,6 +90,9 @@ module RubyLLMStub
   end
 end
 
+# Keep a handle on the real RubyLLM so tests can name its error classes.
+RubyLLMReal = RubyLLM if defined?(RubyLLM) && RubyLLM != RubyLLMStub
+
 # Replace RubyLLM with our stub for all tests
 Object.send(:remove_const, :RubyLLM) if defined?(RubyLLM) && RubyLLM != RubyLLMStub
 RubyLLM = RubyLLMStub

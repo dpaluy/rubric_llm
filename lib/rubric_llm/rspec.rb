@@ -40,6 +40,10 @@ module RubricLLM
 
       private
 
+      def require_context!(context)
+        Metrics::Base.require_context!(context)
+      end
+
       def evaluate(metric_class, **)
         judge = Judge.new(config:)
         metric = metric_class.new(judge:)
@@ -51,6 +55,7 @@ module RubricLLM
     class FaithfulnessMatcher < BaseMatcher
       def initialize(context, question: nil)
         super()
+        require_context!(context)
         @context = context
         @question = question
       end
@@ -113,17 +118,19 @@ module RubricLLM
     class HallucinationMatcher < BaseMatcher
       def initialize(context, question: nil)
         super()
+        require_context!(context)
         @context = context
         @question = question
       end
 
+      # Fail closed: a missing score is not evidence of a hallucination.
       def matches?(answer)
         score = evaluate(Metrics::Faithfulness, question: @question || "", answer:, context: @context)
-        score.nil? || score < threshold
+        !score.nil? && score < threshold
       end
 
       def failure_message
-        "expected hallucination (faithfulness < #{threshold}), got #{result[:score]}"
+        "expected hallucination (faithfulness < #{threshold}), got #{result[:score] || "nil"}"
       end
 
       def failure_message_when_negated

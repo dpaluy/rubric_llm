@@ -4,6 +4,20 @@ require "json"
 
 module RubricLLM
   class Judge
+    # Failures worth retrying: the same request may succeed later.
+    # Everything else (bad key, no credit, malformed request, prompt too long,
+    # contract violations in the judge response) fails on the first attempt.
+    #
+    # Transport failures are absent on purpose. RubyLLM's connection already
+    # retries timeouts and connection resets, so by the time one reaches us it
+    # has been tried several times and is not worth another round.
+    TRANSIENT_ERRORS = [
+      RubyLLM::RateLimitError,
+      RubyLLM::ServerError,
+      RubyLLM::ServiceUnavailableError,
+      RubyLLM::OverloadedError
+    ].freeze
+
     METRIC_RESPONSE_SCHEMA = {
       name: "rubric_llm_metric_response",
       strict: false,
@@ -46,11 +60,7 @@ module RubricLLM
         content = response.content
         validate_response!(content.is_a?(Hash) ? content : parse_json(content))
       rescue StandardError => e
-        if attempts > config.max_retries
-          raise e if e.is_a?(JudgeError)
-
-          raise JudgeError, "Judge call failed: #{e.message}"
-        end
+        raise wrap_error(e) unless transient?(e) && attempts <= config.max_retries
 
         sleep(config.retry_base_delay * (2**(attempts - 1)))
         retry
@@ -78,6 +88,16 @@ module RubricLLM
     end
 
     private
+
+    def transient?(error)
+      TRANSIENT_ERRORS.any? { |klass| error.is_a?(klass) }
+    end
+
+    def wrap_error(error)
+      return error if error.is_a?(JudgeError)
+
+      JudgeError.new("Judge call failed: #{error.message}")
+    end
 
     def apply_response_schema(chat)
       return chat unless chat.respond_to?(:with_schema)

@@ -16,7 +16,7 @@ module RubricLLM
       PROMPT
 
       def call(question:, answer:, context: [], **)
-        context_chunks = Array(context).map { |chunk| chunk.to_s.strip }.reject(&:empty?)
+        context_chunks = Base.normalize_context(context)
         return { score: nil, details: { error: "No context provided" } } if context_chunks.empty?
 
         user_prompt = <<~PROMPT

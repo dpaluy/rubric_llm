@@ -16,13 +16,14 @@ module RubricLLM
       PROMPT
 
       def call(question:, context: [], **)
-        return { score: nil, details: { error: "No context provided" } } if Array(context).empty?
+        context_chunks = Base.normalize_context(context)
+        return { score: nil, details: { error: "No context provided" } } if context_chunks.empty?
 
         user_prompt = <<~PROMPT
           Question: #{question}
 
           Contexts:
-          #{Array(context).each_with_index.map { |c, i| "#{i + 1}. #{c}" }.join("\n")}
+          #{context_chunks.each_with_index.map { |c, i| "#{i + 1}. #{c}" }.join("\n")}
 
           Evaluate how relevant each context is to the question.
         PROMPT

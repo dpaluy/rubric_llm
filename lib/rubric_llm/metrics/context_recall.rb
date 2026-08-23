@@ -17,11 +17,13 @@ module RubricLLM
 
       def call(context: [], ground_truth: nil, **)
         return { score: nil, details: { error: "No ground truth provided" } } if ground_truth.nil?
-        return { score: nil, details: { error: "No context provided" } } if Array(context).empty?
+
+        context_chunks = Base.normalize_context(context)
+        return { score: nil, details: { error: "No context provided" } } if context_chunks.empty?
 
         user_prompt = <<~PROMPT
           Contexts:
-          #{Array(context).each_with_index.map { |c, i| "#{i + 1}. #{c}" }.join("\n")}
+          #{context_chunks.each_with_index.map { |c, i| "#{i + 1}. #{c}" }.join("\n")}
 
           Ground Truth: #{ground_truth}
 

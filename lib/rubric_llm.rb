@@ -16,6 +16,7 @@ require_relative "rubric_llm/metrics/factual_accuracy"
 require_relative "rubric_llm/result"
 require_relative "rubric_llm/evaluator"
 require_relative "rubric_llm/report"
+require_relative "rubric_llm/statistics"
 require_relative "rubric_llm/comparison"
 require_relative "rubric_llm/retrieval_result"
 
