@@ -164,9 +164,9 @@ result = RubricLLM.evaluate_retrieval(
 )
 
 result.precision_at_k(3)  # => 0.67
-result.recall_at_k(3)     # => 0.90
-result.mrr                # => 0.90
-result.ndcg               # => 0.86
+result.recall_at_k(3)     # => 1.0
+result.mrr                # => 1.0
+result.ndcg               # => 0.92
 result.hit_rate           # => 1.0
 ```
 

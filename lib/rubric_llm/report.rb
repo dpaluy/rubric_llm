@@ -19,7 +19,7 @@ module RubricLLM
       results.sort_by { |r| r.overall || -Float::INFINITY }.first(n)
     end
 
-    def failures(threshold: 0.8)
+    def failures(threshold: DEFAULT_THRESHOLD)
       results.reject { |r| r.pass?(threshold:) }
     end
 

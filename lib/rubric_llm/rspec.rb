@@ -24,7 +24,7 @@ module RubricLLM
       attr_reader :threshold, :config, :result
 
       def initialize
-        @threshold = 0.8
+        @threshold = DEFAULT_THRESHOLD
         @config = RubricLLM.config
       end
 

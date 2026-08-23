@@ -20,6 +20,8 @@ require_relative "rubric_llm/comparison"
 require_relative "rubric_llm/retrieval_result"
 
 module RubricLLM
+  DEFAULT_THRESHOLD = 0.8
+
   class << self
     def config
       @config ||= Config.new
