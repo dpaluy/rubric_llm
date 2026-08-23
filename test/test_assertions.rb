@@ -39,4 +39,18 @@ class TestAssertions < Minitest::Test
 
     refute_hallucination "Paris", ["Paris is the capital of France."]
   end
+
+  def test_refute_hallucination_rejects_empty_context
+    error = assert_raises(ArgumentError) do
+      refute_hallucination "Paris", []
+    end
+
+    assert_includes error.message, "non-empty"
+  end
+
+  def test_assert_faithful_rejects_empty_context
+    assert_raises(ArgumentError) do
+      assert_faithful "Paris", ["  "]
+    end
+  end
 end

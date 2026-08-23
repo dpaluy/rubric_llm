@@ -3,6 +3,12 @@
 module RubricLLM
   module Metrics
     class Base
+      # Single source of truth for what counts as usable context.
+      # Blank and whitespace-only chunks are dropped.
+      def self.normalize_context(context)
+        Array(context).map { |chunk| chunk.to_s.strip }.reject(&:empty?)
+      end
+
       attr_reader :judge
 
       def initialize(judge:)

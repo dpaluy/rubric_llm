@@ -38,5 +38,6 @@ Gem::Specification.new do |spec|
   spec.extra_rdoc_files = Dir["README.md", "CHANGELOG.md", "LICENSE.txt"]
 
   spec.add_dependency "csv"
+  spec.add_dependency "faraday"
   spec.add_dependency "ruby_llm", "~> 1.16"
 end

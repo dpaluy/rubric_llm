@@ -21,24 +21,27 @@ module RubricLLM
 
     def summary
       lines = ["A/B Comparison"]
-      lines << ("=" * 70)
-      lines << "Metric                      A        B    Delta    p-value  Sig"
-      lines << ("-" * 70)
+      lines << ("=" * 80)
+      lines << "Metric                      A        B    Delta    p-value      p-adj  Sig"
+      lines << ("-" * 80)
 
       results.each do |metric, r|
-        lines << format("%-20s %8.3f %8.3f %+8.3f %10.4f %4s",
-                        metric, r[:mean_a], r[:mean_b], r[:delta], r[:p_value], r[:significance])
+        lines << format("%-20s %8.3f %8.3f %+8.3f %10.4f %10.4f %4s",
+                        metric, r[:mean_a], r[:mean_b], r[:delta], r[:p_value], r[:p_value_adjusted],
+                        r[:significance])
       end
 
+      lines << ""
+      lines << "p-adj: Holm-Bonferroni adjusted across #{results.size} metrics. Significance uses p-adj."
       lines.join("\n")
     end
 
     def significant_improvements(alpha: 0.05)
-      results.select { |_, r| r[:p_value] < alpha && r[:delta].positive? }.keys
+      results.select { |_, r| r[:p_value_adjusted] < alpha && r[:delta].positive? }.keys
     end
 
     def significant_regressions(alpha: 0.05)
-      results.select { |_, r| r[:p_value] < alpha && r[:delta].negative? }.keys
+      results.select { |_, r| r[:p_value_adjusted] < alpha && r[:delta].negative? }.keys
     end
 
     private
@@ -46,110 +49,87 @@ module RubricLLM
     def compute_results
       metrics = (report_a.metric_stats.keys | report_b.metric_stats.keys)
 
-      metrics.each_with_object({}) do |metric, hash|
-        paired_scores = report_a.scores_for(metric)
-                                .zip(report_b.scores_for(metric))
-                                .select { |score_a, score_b| !score_a.nil? && !score_b.nil? }
+      raw = metrics.each_with_object({}) do |metric, hash|
+        stats = metric_stats(metric)
+        hash[metric] = stats if stats
+      end
 
-        next if paired_scores.empty?
+      apply_holm_correction(raw)
+    end
 
-        scores_a, scores_b = paired_scores.transpose
+    def metric_stats(metric)
+      paired_scores = paired_results
+                      .map { |result_a, result_b| [result_a.scores[metric], result_b.scores[metric]] }
+                      .reject { |score_a, score_b| score_a.nil? || score_b.nil? }
 
-        mean_a = scores_a.sum / scores_a.size.to_f
-        mean_b = scores_b.sum / scores_b.size.to_f
-        delta = mean_b - mean_a
-        p_value = paired_t_test(scores_a, scores_b)
+      return nil if paired_scores.empty?
 
-        hash[metric] = {
-          mean_a:,
-          mean_b:,
-          delta:,
-          p_value:,
-          significance: significance_marker(p_value)
-        }
+      scores_a, scores_b = paired_scores.transpose
+      mean_a = scores_a.sum / scores_a.size.to_f
+      mean_b = scores_b.sum / scores_b.size.to_f
+
+      {
+        mean_a:,
+        mean_b:,
+        delta: mean_b - mean_a,
+        p_value: Statistics.paired_t_test(scores_a, scores_b)
+      }
+    end
+
+    # A paired t-test requires the same sample on both sides. Pair by question
+    # instead of array position so a reordered dataset stays valid.
+    def paired_results
+      @paired_results ||= build_pairs
+    end
+
+    def build_pairs
+      groups_a = report_a.results.group_by { |result| pair_key(result) }
+      groups_b = report_b.results.group_by { |result| pair_key(result) }
+
+      matched = groups_a.keys & groups_b.keys
+      warn_unmatched((groups_a.keys | groups_b.keys) - matched)
+
+      matched.flat_map do |key|
+        list_a = groups_a[key]
+        list_b = groups_b[key]
+        warn_uneven(key, list_a.size, list_b.size) unless list_a.size == list_b.size
+
+        size = [list_a.size, list_b.size].min
+        list_a.first(size).zip(list_b.first(size))
       end
     end
 
-    def paired_t_test(a, b)
-      n = [a.size, b.size].min
-      return 1.0 if n < 2
-
-      diffs = a.first(n).zip(b.first(n)).map { |x, y| y - x }
-      mean_d = diffs.sum / n.to_f
-      var_d = diffs.sum { |d| (d - mean_d)**2 } / (n - 1).to_f
-      se = Math.sqrt(var_d / n)
-
-      return 1.0 if se.zero?
-
-      t = mean_d / se
-      df = n - 1
-
-      # Two-tailed p-value approximation using Student's t-distribution
-      two_tailed_p(t.abs, df)
+    def pair_key(result)
+      sample = result.sample
+      sample.is_a?(Hash) ? sample[:question] : nil
     end
 
-    # Two-tailed p-value for Student's t-distribution.
-    # p = I_x(df/2, 1/2) where x = df/(df + t²)
-    def two_tailed_p(t, df)
-      x = df / (df + (t**2))
-      regularized_beta(x, df / 2.0, 0.5)
-    rescue StandardError
-      1.0
+    def warn_unmatched(keys)
+      return if keys.empty?
+
+      warn "[RubricLLM] Comparison dropped #{keys.size} question(s) present in only one report. " \
+           "Paired tests need the same questions on both sides."
     end
 
-    # Regularized incomplete beta function via continued fraction (Lentz's method).
-    def regularized_beta(x, a, b)
-      return 0.0 if x <= 0.0
-      return 1.0 if x >= 1.0
-
-      ln_beta = Math.lgamma(a + b)[0] - Math.lgamma(a)[0] - Math.lgamma(b)[0]
-      front = Math.exp(ln_beta + (a * Math.log(x)) + (b * Math.log(1.0 - x)))
-
-      result = if x < ((a + 1.0) / (a + b + 2.0))
-                 front * beta_continued_fraction(a, b, x) / a
-               else
-                 1.0 - ((front * beta_continued_fraction(b, a, 1.0 - x)) / b)
-               end
-
-      result.clamp(0.0, 1.0)
+    def warn_uneven(key, size_a, size_b)
+      warn "[RubricLLM] Question #{key.inspect} appears #{size_a} time(s) in report A and " \
+           "#{size_b} time(s) in report B. Extra occurrences are dropped."
     end
 
-    def beta_continued_fraction(a, b, x)
-      tiny = 1e-30
-      qab = a + b
-      qap = a + 1.0
-      qam = a - 1.0
+    # One t-test per metric inflates the family-wise error rate, so adjust
+    # before calling any metric significant.
+    def apply_holm_correction(results)
+      metrics = results.keys
+      adjusted = Statistics.holm_adjust(metrics.map { |metric| results[metric][:p_value] })
 
-      c = 1.0
-      d = 1.0 - ((qab * x) / qap)
-      d = tiny if d.abs < tiny
-      d = 1.0 / d
-      fraction = d
-
-      (1..200).each do |m|
-        m2 = 2 * m
-
-        numerator = (m * (b - m) * x) / ((qam + m2) * (a + m2))
-        d = 1.0 + (numerator * d)
-        d = tiny if d.abs < tiny
-        c = 1.0 + (numerator / c)
-        c = tiny if c.abs < tiny
-        d = 1.0 / d
-        fraction *= c * d
-
-        numerator = -((a + m) * (qab + m) * x) / ((a + m2) * (qap + m2))
-        d = 1.0 + (numerator * d)
-        d = tiny if d.abs < tiny
-        c = 1.0 + (numerator / c)
-        c = tiny if c.abs < tiny
-        d = 1.0 / d
-        delta = c * d
-        fraction *= delta
-
-        break if (delta - 1.0).abs < 1e-12
+      metrics.each_with_index do |metric, index|
+        results[metric] = results[metric].merge(
+          p_value_adjusted: adjusted[index],
+          significance: significance_marker(adjusted[index])
+        )
       end
 
-      fraction
+      results
     end
 
     def significance_marker(p)

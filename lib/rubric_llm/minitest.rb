@@ -5,6 +5,7 @@ require "rubric_llm"
 module RubricLLM
   module Assertions
     def assert_faithful(answer, context, question: "", threshold: DEFAULT_THRESHOLD, config: RubricLLM.config)
+      require_context!(context)
       result = evaluate_metric(Metrics::Faithfulness, question:, answer:, context:, config:)
       score = result[:score]
 
@@ -29,6 +30,7 @@ module RubricLLM
     end
 
     def refute_hallucination(answer, context, question: "", threshold: DEFAULT_THRESHOLD, config: RubricLLM.config)
+      require_context!(context)
       result = evaluate_metric(Metrics::Faithfulness, question:, answer:, context:, config:)
       score = result[:score]
 
@@ -37,6 +39,14 @@ module RubricLLM
     end
 
     private
+
+    # An empty context cannot produce a faithfulness score. Reject it as a caller
+    # error instead of letting a nil score read as a quality verdict.
+    def require_context!(context)
+      return unless Metrics::Base.normalize_context(context).empty?
+
+      raise ArgumentError, "context must contain at least one non-empty entry"
+    end
 
     def evaluate_metric(metric_class, config:, **)
       judge = Judge.new(config:)

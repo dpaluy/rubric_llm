@@ -3,6 +3,16 @@
 require "test_helper"
 require "rubric_llm/rspec"
 
+# Stands in for a judge that produced no score, to check the matcher fails closed.
+class NilScoreHallucinationMatcher < RubricLLM::RSpecMatchers::HallucinationMatcher
+  private
+
+  def evaluate(*, **)
+    @result = { score: nil, details: { error: "judge unavailable" } }
+    nil
+  end
+end
+
 # Tests for RSpec matchers using Minitest (no rspec dependency needed).
 # Each matcher is a plain Ruby object with matches?, failure_message, etc.
 class TestRSpecMatchers < Minitest::Test
@@ -142,6 +152,34 @@ class TestRSpecMatchers < Minitest::Test
 
     assert matcher.matches?("answer")
     assert_equal custom, matcher.config
+  end
+
+  # --- Empty context is a caller error, not a quality verdict ---
+
+  def test_hallucination_matcher_rejects_empty_context
+    error = assert_raises(ArgumentError) do
+      RubricLLM::RSpecMatchers::HallucinationMatcher.new([])
+    end
+
+    assert_includes error.message, "non-empty"
+  end
+
+  def test_hallucination_matcher_rejects_blank_context
+    assert_raises(ArgumentError) do
+      RubricLLM::RSpecMatchers::HallucinationMatcher.new(["   ", ""])
+    end
+  end
+
+  def test_faithfulness_matcher_rejects_empty_context
+    assert_raises(ArgumentError) do
+      RubricLLM::RSpecMatchers::FaithfulnessMatcher.new([])
+    end
+  end
+
+  def test_hallucination_matcher_fails_closed_on_nil_score
+    matcher = NilScoreHallucinationMatcher.new(["context"])
+
+    refute matcher.matches?("answer"), "a missing score must not read as a detected hallucination"
   end
 
   # --- DSL helpers ---

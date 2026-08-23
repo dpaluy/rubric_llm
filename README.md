@@ -217,18 +217,28 @@ comparison = RubricLLM.compare(report_a, report_b)
 
 puts comparison.summary
 # A/B Comparison
-# ======================================================================
-# Metric                      A        B    Delta    p-value  Sig
-# ----------------------------------------------------------------------
-# faithfulness                0.880    0.920   +0.040     0.0230    *
-# relevance                   0.850    0.860   +0.010     0.4210
-# correctness                 0.910    0.940   +0.030     0.0089   **
+# ================================================================================
+# Metric                      A        B    Delta    p-value      p-adj  Sig
+# --------------------------------------------------------------------------------
+# faithfulness            0.880    0.920   +0.040     0.0023     0.0068   **
+# relevance               0.850    0.860   +0.010     0.3081     0.3081
+# correctness             0.910    0.940   +0.030     0.0240     0.0480    *
+#
+# p-adj: Holm-Bonferroni adjusted across 3 metrics. Significance uses p-adj.
 
 comparison.significant_improvements   # => [:faithfulness, :correctness]
 comparison.significant_regressions    # => []
 ```
 
 Significance markers: `*` (p < 0.05), `**` (p < 0.01), `***` (p < 0.001)
+
+### Pairing
+
+A paired t-test needs the same sample on both sides. The comparison pairs results by `sample[:question]`, not by position, so a reordered dataset still gives a valid test. Questions present in only one report are dropped with a warning. If a question repeats an uneven number of times across the two reports, the extra occurrences are dropped with a warning.
+
+### Multiple comparisons
+
+Every metric gets its own t-test. Six tests at alpha 0.05 give a family-wise false-positive rate near 26%, so each raw `p_value` is corrected with the Holm-Bonferroni step-down method and reported as `p_value_adjusted`. The significance markers and both `significant_*` methods read the adjusted value. The raw value stays in the result for reference.
 
 For the statistical reasoning behind paired t-tests and how to read these p-values, see [Understanding A/B Comparison](https://github.com/dpaluy/rubric_llm/wiki/Understanding-A-B-Comparison) on the wiki.
 
@@ -338,7 +348,7 @@ Ruby has two LLM evaluation options today. Neither fits most use cases:
 | **LLM access** | Raw HTTP (OpenAI/Anthropic only) | You implement it | RubyLLM (any provider) |
 | **Rails required?** | No | Yes (engine + 6 migrations) | No |
 | **ActiveRecord?** | No | Yes | No |
-| **A/B comparison** | Basic | No | Paired t-test with p-values |
+| **A/B comparison** | Basic | No | Paired t-test with Holm-corrected p-values |
 | **Test assertions** | Minitest + RSpec | No | Minitest + RSpec |
 | **Pluggable metrics** | No (fixed set) | Yes | Yes |
 | **Retrieval metrics** | Yes | No | Yes |
