@@ -236,6 +236,8 @@ Significance markers: `*` (p < 0.05), `**` (p < 0.01), `***` (p < 0.001)
 
 A paired t-test needs the same sample on both sides. The comparison pairs results by `sample[:question]`, not by position, so a reordered dataset still gives a valid test. Questions present in only one report are dropped with a warning. If a question repeats an uneven number of times across the two reports, the extra occurrences are dropped with a warning.
 
+`evaluate_batch` requires a `:question` on every sample, so reports it produces always pair by identity. Hand-built reports whose results carry no `sample[:question]` fall back to position pairing and warn.
+
 ### Multiple comparisons
 
 Every metric gets its own t-test. Six tests at alpha 0.05 give a family-wise false-positive rate near 26%, so each raw `p_value` is corrected with the Holm-Bonferroni step-down method and reported as `p_value_adjusted`. The significance markers and both `significant_*` methods read the adjusted value. The raw value stays in the result for reference.

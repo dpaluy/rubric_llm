@@ -182,6 +182,13 @@ class TestRSpecMatchers < Minitest::Test
     refute matcher.matches?("answer"), "a missing score must not read as a detected hallucination"
   end
 
+  def test_hallucination_matcher_names_a_missing_score_in_its_failure_message
+    matcher = NilScoreHallucinationMatcher.new(["context"])
+    matcher.matches?("answer")
+
+    assert_includes matcher.failure_message, "got nil"
+  end
+
   # --- DSL helpers ---
 
   def test_dsl_helpers_exist

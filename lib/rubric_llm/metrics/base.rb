@@ -9,6 +9,14 @@ module RubricLLM
         Array(context).map { |chunk| chunk.to_s.strip }.reject(&:empty?)
       end
 
+      # An empty context cannot produce a faithfulness score. Reject it as a caller
+      # error instead of letting a nil score read as a quality verdict.
+      def self.require_context!(context)
+        return unless normalize_context(context).empty?
+
+        raise ArgumentError, "context must contain at least one non-empty entry"
+      end
+
       attr_reader :judge
 
       def initialize(judge:)

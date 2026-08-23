@@ -15,6 +15,11 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - `ContextPrecision` and `ContextRecall` drop blank and whitespace-only context chunks and return a `No context provided` error when nothing usable remains, matching `Faithfulness`
 - `Statistics.two_tailed_p` rescues only `Math::DomainError`, `ZeroDivisionError`, and `FloatDomainError`. It previously swallowed every `StandardError` and returned 1.0
 - A paired t-test over a constant difference returns 1.0 instead of a spurious near-zero p-value caused by float error in the variance
+- The RSpec `hallucinate` matcher renders a missing score as `nil` in its failure message instead of an empty string
+
+### Removed
+
+- The `Comparison` constructor no longer warns about reports of different sizes. Different sizes are fine when the questions match, and equal sizes can still drop every pair when they do not. The pairing warnings report what is actually dropped
 
 ### Added
 

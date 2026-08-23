@@ -7,12 +7,6 @@ module RubricLLM
     def initialize(report_a, report_b)
       @report_a = report_a
       @report_b = report_b
-
-      return if report_a.results.size == report_b.results.size
-
-      warn "[RubricLLM] Comparison reports have different sizes " \
-           "(#{report_a.results.size} vs #{report_b.results.size}). " \
-           "Unmatched pairs will be dropped."
     end
 
     def results
@@ -86,8 +80,10 @@ module RubricLLM
       groups_a = report_a.results.group_by { |result| pair_key(result) }
       groups_b = report_b.results.group_by { |result| pair_key(result) }
 
+      warn_unkeyed(groups_a[nil].to_a.size + groups_b[nil].to_a.size)
+
       matched = groups_a.keys & groups_b.keys
-      warn_unmatched((groups_a.keys | groups_b.keys) - matched)
+      warn_unmatched(((groups_a.keys | groups_b.keys) - matched).compact)
 
       matched.flat_map do |key|
         list_a = groups_a[key]
@@ -102,6 +98,15 @@ module RubricLLM
     def pair_key(result)
       sample = result.sample
       sample.is_a?(Hash) ? sample[:question] : nil
+    end
+
+    # Results with no sample[:question] share one bucket and pair by position,
+    # which is the behaviour identity pairing exists to replace. Say so.
+    def warn_unkeyed(count)
+      return if count.zero?
+
+      warn "[RubricLLM] #{count} result(s) have no sample[:question]. They share one bucket and " \
+           "pair by position. Give every sample a :question to pair them reliably."
     end
 
     def warn_unmatched(keys)

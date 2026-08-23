@@ -40,12 +40,8 @@ module RubricLLM
 
       private
 
-      # An empty context cannot produce a faithfulness score. Reject it as a caller
-      # error instead of letting a nil score read as a quality verdict.
       def require_context!(context)
-        return unless Metrics::Base.normalize_context(context).empty?
-
-        raise ArgumentError, "context must contain at least one non-empty entry"
+        Metrics::Base.require_context!(context)
       end
 
       def evaluate(metric_class, **)
@@ -134,7 +130,7 @@ module RubricLLM
       end
 
       def failure_message
-        "expected hallucination (faithfulness < #{threshold}), got #{result[:score]}"
+        "expected hallucination (faithfulness < #{threshold}), got #{result[:score] || "nil"}"
       end
 
       def failure_message_when_negated

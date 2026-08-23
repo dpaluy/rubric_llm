@@ -5,14 +5,14 @@ require "test_helper"
 class TestComparison < Minitest::Test
   def setup
     results_a = [
-      RubricLLM::Result.new(scores: { faithfulness: 0.7, relevance: 0.6 }, details: {}, sample: {}),
-      RubricLLM::Result.new(scores: { faithfulness: 0.6, relevance: 0.5 }, details: {}, sample: {}),
-      RubricLLM::Result.new(scores: { faithfulness: 0.65, relevance: 0.55 }, details: {}, sample: {})
+      scored("q1", faithfulness: 0.7, relevance: 0.6),
+      scored("q2", faithfulness: 0.6, relevance: 0.5),
+      scored("q3", faithfulness: 0.65, relevance: 0.55)
     ]
     results_b = [
-      RubricLLM::Result.new(scores: { faithfulness: 0.9, relevance: 0.6 }, details: {}, sample: {}),
-      RubricLLM::Result.new(scores: { faithfulness: 0.85, relevance: 0.5 }, details: {}, sample: {}),
-      RubricLLM::Result.new(scores: { faithfulness: 0.88, relevance: 0.55 }, details: {}, sample: {})
+      scored("q1", faithfulness: 0.9, relevance: 0.6),
+      scored("q2", faithfulness: 0.85, relevance: 0.5),
+      scored("q3", faithfulness: 0.88, relevance: 0.55)
     ]
 
     @report_a = RubricLLM::Report.new(results: results_a)
@@ -59,37 +59,37 @@ class TestComparison < Minitest::Test
     refute_includes regressions, :relevance
   end
 
-  def test_warns_on_mismatched_report_sizes
-    report_a = RubricLLM::Report.new(results: [
-                                       RubricLLM::Result.new(scores: { faithfulness: 0.5 }, details: {}, sample: {})
-                                     ])
-    report_b = RubricLLM::Report.new(results: [
-                                       RubricLLM::Result.new(scores: { faithfulness: 0.6 }, details: {}, sample: {}),
-                                       RubricLLM::Result.new(scores: { faithfulness: 0.7 }, details: {}, sample: {})
-                                     ])
-
-    output = capture_io { RubricLLM::Comparison.new(report_a, report_b) }
-
-    assert_match(/different sizes/, output[1])
-  end
-
   def test_results_keep_pairs_aligned_when_filtering_nil_scores
-    report_a = RubricLLM::Report.new(results: [
-                                       RubricLLM::Result.new(scores: { faithfulness: 0.2 }, details: {}, sample: {}),
-                                       RubricLLM::Result.new(scores: { faithfulness: nil }, details: {}, sample: {}),
-                                       RubricLLM::Result.new(scores: { faithfulness: 0.9 }, details: {}, sample: {})
-                                     ])
-    report_b = RubricLLM::Report.new(results: [
-                                       RubricLLM::Result.new(scores: { faithfulness: 0.4 }, details: {}, sample: {}),
-                                       RubricLLM::Result.new(scores: { faithfulness: 0.6 }, details: {}, sample: {}),
-                                       RubricLLM::Result.new(scores: { faithfulness: 1.0 }, details: {}, sample: {})
-                                     ])
+    report_a = build_report({ "q1" => 0.2, "q2" => nil, "q3" => 0.9 })
+    report_b = build_report({ "q1" => 0.4, "q2" => 0.6, "q3" => 1.0 })
 
     result = RubricLLM::Comparison.new(report_a, report_b).results[:faithfulness]
 
     assert_in_delta 0.55, result[:mean_a], 0.001
     assert_in_delta 0.7, result[:mean_b], 0.001
     assert_in_delta 0.15, result[:delta], 0.001
+  end
+
+  def test_warns_when_results_carry_no_question
+    report_a = RubricLLM::Report.new(results: [
+                                       RubricLLM::Result.new(scores: { faithfulness: 0.5 }, details: {}, sample: {})
+                                     ])
+    report_b = RubricLLM::Report.new(results: [
+                                       RubricLLM::Result.new(scores: { faithfulness: 0.6 }, details: {}, sample: {})
+                                     ])
+
+    output = capture_io { RubricLLM::Comparison.new(report_a, report_b).results }
+
+    assert_match(/2 result\(s\) have no sample\[:question\]/, output[1])
+  end
+
+  def test_does_not_warn_when_every_result_carries_a_question
+    report_a = build_report({ "q1" => 0.5, "q2" => 0.6 })
+    report_b = build_report({ "q1" => 0.9, "q2" => 0.8 })
+
+    output = capture_io { RubricLLM::Comparison.new(report_a, report_b).results }
+
+    assert_empty output[1]
   end
 
   # --- Pairing by identity ---
@@ -174,5 +174,9 @@ class TestComparison < Minitest::Test
 
   def result_for(question, score)
     RubricLLM::Result.new(scores: { faithfulness: score }, details: {}, sample: { question: })
+  end
+
+  def scored(question, **scores)
+    RubricLLM::Result.new(scores:, details: {}, sample: { question: })
   end
 end
