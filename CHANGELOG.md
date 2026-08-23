@@ -11,7 +11,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 - The RSpec `hallucinate` matcher no longer reports a hallucination when the judge returns no score. A failed judge call previously read as a positive match and failed the build with a false verdict
 - `Comparison` pairs samples by `sample[:question]` instead of array position. Two reports built from the same dataset in a different order produced an invalid paired t-test. Questions present in only one report are dropped with a warning
-- `Judge#call` retries only transient failures (`RubyLLM::RateLimitError`, `ServerError`, `ServiceUnavailableError`, `OverloadedError`, `Faraday::ConnectionFailed`, `Faraday::TimeoutError`). A bad API key, an exhausted quota, an over-long prompt, or a judge contract violation now fails on the first attempt instead of sleeping through the full retry schedule
+- `Judge#call` retries only transient failures (`RubyLLM::RateLimitError`, `ServerError`, `ServiceUnavailableError`, `OverloadedError`). A bad API key, an exhausted quota, an over-long prompt, or a judge contract violation now fails on the first attempt instead of sleeping through the full retry schedule. Transport timeouts and connection resets are left to RubyLLM's connection, which already retries them
 - `ContextPrecision` and `ContextRecall` drop blank and whitespace-only context chunks and return a `No context provided` error when nothing usable remains, matching `Faithfulness`
 - `Statistics.two_tailed_p` rescues only `Math::DomainError`, `ZeroDivisionError`, and `FloatDomainError`. It previously swallowed every `StandardError` and returned 1.0
 - A paired t-test over a constant difference returns 1.0 instead of a spurious near-zero p-value caused by float error in the variance
@@ -26,7 +26,6 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - Holm-Bonferroni correction across metrics in `Comparison`. Each result carries `:p_value_adjusted` next to the raw `:p_value`, `#summary` prints a `p-adj` column, and `#significant_improvements` / `#significant_regressions` test the adjusted value. Six independent tests at alpha 0.05 gave a family-wise false-positive rate near 26%
 - `RubricLLM::Statistics`, a module holding the paired t-test, the two-tailed p-value, the Holm adjustment, and the incomplete beta function. No LLM calls, no state
 - `Metrics::Base.normalize_context`, the single definition of usable context
-- `faraday` as a runtime dependency; `Judge` names its connection error classes directly
 
 ### Changed
 

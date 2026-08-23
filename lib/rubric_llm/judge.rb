@@ -1,20 +1,21 @@
 # frozen_string_literal: true
 
 require "json"
-require "faraday"
 
 module RubricLLM
   class Judge
     # Failures worth retrying: the same request may succeed later.
     # Everything else (bad key, no credit, malformed request, prompt too long,
     # contract violations in the judge response) fails on the first attempt.
+    #
+    # Transport failures are absent on purpose. RubyLLM's connection already
+    # retries timeouts and connection resets, so by the time one reaches us it
+    # has been tried several times and is not worth another round.
     TRANSIENT_ERRORS = [
       RubyLLM::RateLimitError,
       RubyLLM::ServerError,
       RubyLLM::ServiceUnavailableError,
-      RubyLLM::OverloadedError,
-      Faraday::ConnectionFailed,
-      Faraday::TimeoutError
+      RubyLLM::OverloadedError
     ].freeze
 
     METRIC_RESPONSE_SCHEMA = {

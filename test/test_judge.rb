@@ -115,17 +115,21 @@ class TestJudge < Minitest::Test
     assert_equal 2, chat.call_count
   end
 
-  def test_call_retries_connection_failures
+  # RubyLLM's connection retries transport failures before they reach us, so a
+  # second retry loop here only multiplies the request count.
+  def test_call_leaves_transport_failures_to_ruby_llm
     chat = RubyLLMStub::FakeChat.new(response_content: '{"score": 0.9}', fail_times: 1,
-                                     error_class: Faraday::ConnectionFailed)
+                                     error_class: Errno::ECONNRESET)
     RubyLLMStub.fake_chat = chat
 
-    config = RubricLLM::Config.new(max_retries: 2, retry_base_delay: 0.0)
+    config = RubricLLM::Config.new(max_retries: 3, retry_base_delay: 0.0)
     judge = RubricLLM::Judge.new(config:)
-    result = judge.call(system_prompt: "test", user_prompt: "test")
 
-    assert_in_delta 0.9, result["score"]
-    assert_equal 2, chat.call_count
+    assert_raises(RubricLLM::JudgeError) do
+      judge.call(system_prompt: "test", user_prompt: "test")
+    end
+
+    assert_equal 1, chat.call_count
   end
 
   def test_call_raises_after_exhausting_retries
