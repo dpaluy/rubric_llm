@@ -136,6 +136,8 @@ RubricLLM has no Rails models or database migrations. If the application also us
 
 RubyLLM transport retries and RubricLLM judge retries remain separate. With RubyLLM's default `config.max_retries = 3` and RubricLLM's default `max_retries: 2`, one retryable metric failure can produce up to `(3 + 1) * (2 + 1) = 12` HTTP attempts. Set `RUBRIC_MAX_RETRIES` and `RUBRIC_RETRY_BASE_DELAY` for RubricLLM's layer, and set RubyLLM's `config.max_retries` and related transport settings for its layer. RubricLLM 0.6 does not combine or redesign these retry layers.
 
+RubyLLM classifies OpenAI's HTTP 429 `insufficient_quota` response as a rate-limit error, so an exhausted account uses both retry budgets and their delays before the error is returned.
+
 ## Metrics
 
 ### LLM-as-Judge Metrics
