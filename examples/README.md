@@ -23,6 +23,17 @@ Install dependencies from the project root:
 bundle install
 ```
 
+These examples target RubricLLM `0.6.0.rc1` with RubyLLM `2.0.0.rc1`. To add the release candidate to another Bundler application, add both exact prerelease constraints before resolving:
+
+```ruby
+gem "rubric_llm", "0.6.0.rc1"
+gem "ruby_llm", "2.0.0.rc1"
+```
+
+Then run `bundle update rubric_llm ruby_llm`. RubyLLM's upstream pin command is `bundle add ruby_llm --version 2.0.0.rc1`; update an existing RubyLLM 1.x constraint at the same time.
+
+This prerelease supports RubyLLM 2 only. Applications using RubyLLM 1.x should stay on RubricLLM `0.5.x`.
+
 The examples below use OpenAI through RubyLLM. Set an API key before running them:
 
 ```bash
@@ -31,6 +42,16 @@ export OPENAI_API_KEY=...
 
 Each script also wires `OPENAI_API_KEY` into `RubyLLM.configure(openai_api_key:)`, because RubyLLM expects provider keys on its
 own configuration object.
+
+RubyLLM 2 uses OpenAI Responses by default. For an OpenAI-compatible gateway that only accepts Chat Completions, add this to the RubyLLM configuration in the example:
+
+```ruby
+RubyLLM.configure do |config|
+  config.openai_protocol = :chat_completions
+end
+```
+
+RubricLLM keeps `max_tokens` as its public setting. An omitted temperature reads `RUBRIC_TEMPERATURE`, defaulting to `0.0`; before 0.6.0.rc1, `temperature: nil` selected that value, and now it omits temperature from the provider request. Provider and model support for structured output varies, so RubricLLM validates JSON scores locally when RubyLLM does not report schema support. See the [RubyLLM 2.0 upgrade guide](https://rubyllm.com/next/upgrading/) for provider and protocol details.
 
 ## Judge vs Evaluated Model
 

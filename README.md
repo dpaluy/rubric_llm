@@ -8,18 +8,29 @@ Lightweight LLM evaluation framework for Ruby, inspired by [DeepEval](https://gi
 
 Provider-agnostic evaluation with pluggable metrics, statistical A/B comparison, and test framework integration: no Rails, no ActiveRecord, no UI. Works anywhere Ruby runs.
 
+`0.6.0.rc1` is a prerelease for RubyLLM `2.0.0.rc1`. It supports RubyLLM 2 only. Applications that use RubyLLM 1.x should stay on RubricLLM `0.5.x`. Stable `0.6.0` waits for the final RubyLLM 2.0 release and the complete Ruby 3.4 and 4.0 test matrix.
+
 ## Installation
 
-Add to your Gemfile:
+Install the release candidate with both exact prerelease constraints in the same Gemfile change:
 
 ```ruby
-gem "rubric_llm"
+gem "rubric_llm", "0.6.0.rc1"
+gem "ruby_llm", "2.0.0.rc1"
 ```
+
+Then resolve both gems together:
+
+```bash
+bundle update rubric_llm ruby_llm
+```
+
+RubyLLM's upstream prerelease pin command is `bundle add ruby_llm --version 2.0.0.rc1`. If the application still has a RubyLLM 1.x constraint, update both constraints before running Bundler.
 
 Or install directly:
 
 ```bash
-gem install rubric_llm
+gem install rubric_llm --version 0.6.0.rc1 --pre
 ```
 
 ## Quick Start
@@ -62,6 +73,25 @@ RubricLLM.configure do |c|
 end
 ```
 
+`max_tokens` remains RubricLLM's public setting, and `RUBRIC_MAX_TOKENS` remains its environment variable. RubyLLM 2 maps this shared limit to the selected provider and protocol.
+
+When `temperature` is omitted, RubricLLM reads `RUBRIC_TEMPERATURE` and uses `0.0` when the variable is not set. Before 0.6.0.rc1, an explicit `temperature: nil` selected that environment value or `0.0`; it now means that RubricLLM omits temperature from the provider request, so the provider chooses its default:
+
+```ruby
+RubricLLM::Config.new                  # RUBRIC_TEMPERATURE, otherwise 0.0
+RubricLLM::Config.new(temperature: nil) # omit temperature from the request
+```
+
+RubyLLM 2 uses the OpenAI Responses protocol by default when the selected model supports it. For an OpenAI-compatible gateway that only accepts Chat Completions, configure RubyLLM before evaluating:
+
+```ruby
+RubyLLM.configure do |config|
+  config.openai_protocol = :chat_completions
+end
+```
+
+Structured output support depends on the selected provider and model. RubricLLM sends its schema when RubyLLM reports structured output support. Otherwise it requests JSON text and validates the response object and score locally. Check the target provider's support before relying on a schema or a specific protocol. See RubyLLM's [2.0 upgrade guide](https://rubyllm.com/next/upgrading/), [request control guide](https://rubyllm.com/next/chat-request-control/), and [structured output support](https://rubyllm.com/next/structured-output/).
+
 ### Environment Variables
 
 All config fields can be set via environment variables:
@@ -99,6 +129,14 @@ RubricLLM.configure do |c|
   c.judge_provider = :openai
 end
 ```
+
+RubricLLM has no Rails models or database migrations. If the application also uses RubyLLM's Rails persistence, follow RubyLLM's 2.0 upgrade guide and run its phased migrations separately.
+
+### Retries
+
+RubyLLM transport retries and RubricLLM judge retries remain separate. With RubyLLM's default `config.max_retries = 3` and RubricLLM's default `max_retries: 2`, one retryable metric failure can produce up to `(3 + 1) * (2 + 1) = 12` HTTP attempts. Set `RUBRIC_MAX_RETRIES` and `RUBRIC_RETRY_BASE_DELAY` for RubricLLM's layer, and set RubyLLM's `config.max_retries` and related transport settings for its layer. RubricLLM 0.6 does not combine or redesign these retry layers.
+
+RubyLLM classifies OpenAI's HTTP 429 `insufficient_quota` response as a rate-limit error, so an exhausted account uses both retry budgets and their delays before the error is returned.
 
 ## Metrics
 
@@ -323,7 +361,7 @@ result.overall                         # => mean of non-nil scores only
 
 ```bash
 bundle install
-bundle exec rake test
+bundle exec rake test test_contract
 bundle exec rubocop
 ```
 
@@ -365,7 +403,7 @@ Deep dives live in the [project wiki](https://github.com/dpaluy/rubric_llm/wiki)
 ## Requirements
 
 - Ruby >= 3.4
-- [ruby_llm](https://github.com/crmne/ruby_llm) ~> 1.0
+- [ruby_llm](https://github.com/crmne/ruby_llm) = 2.0.0.rc1 for RubricLLM 0.6.0.rc1
 - An API key for your chosen LLM provider (set via RubyLLM configuration)
 
 ## Contributing

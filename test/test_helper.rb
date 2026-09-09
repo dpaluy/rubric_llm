@@ -3,10 +3,23 @@
 $LOAD_PATH.unshift File.expand_path("../lib", __dir__)
 require "json"
 require "rubric_llm"
+require "ruby_llm/chat"
 require "minitest/autorun"
 
 # Stub for RubyLLM chat that returns predictable JSON responses.
 module RubyLLMStub
+  class FakeModel
+    attr_reader :capabilities
+
+    def initialize(capabilities: ["structured_output"])
+      @capabilities = capabilities.map(&:to_s)
+    end
+
+    def supports?(capability)
+      capabilities.include?(capability.to_s)
+    end
+  end
+
   class FakeResponse
     attr_reader :content
 
@@ -17,22 +30,27 @@ module RubyLLMStub
 
   class FakeChat
     attr_accessor :response_content
-    attr_reader :last_system_prompt, :last_user_prompt, :last_params, :last_attachments, :last_schema, :call_count
+    attr_reader :last_system_prompt, :last_user_prompt, :last_attachments, :last_schema,
+                :last_temperature, :last_max_output_tokens, :call_count, :model
 
-    def initialize(response_content: '{"score": 0.9, "reasoning": "test"}', fail_times: 0, error_class: RuntimeError)
+    def initialize(response_content: '{"score": 0.9, "reasoning": "test"}', fail_times: 0, error_class: RuntimeError,
+                   model: nil)
       @response_content = response_content
       @fail_times = fail_times
       @error_class = error_class
+      @model = model || FakeModel.new
       @call_count = 0
     end
 
-    def with_temperature(_temp)
+    def with_temperature(temperature)
+      @last_temperature = temperature
       self
     end
 
-    def with_instructions(instructions, append: false, replace: nil)
+    def with_instructions(instructions, append: false, cache_until_here: false)
+      @cache_until_here = cache_until_here
       @last_system_prompt =
-        if append && @last_system_prompt && replace != true
+        if append && @last_system_prompt
           "#{@last_system_prompt}\n#{instructions}"
         else
           instructions
@@ -40,9 +58,9 @@ module RubyLLMStub
       self
     end
 
-    def ask(prompt, with: nil, **)
+    def ask(message = nil, with: nil, &)
       @call_count += 1
-      @last_user_prompt = prompt
+      @last_user_prompt = message
       @last_attachments = with
 
       Array(with).compact.each do |attachment|
@@ -54,12 +72,11 @@ module RubyLLMStub
 
       raise @error_class, "transient failure" if @call_count <= @fail_times
 
-      content = @last_schema ? normalize_schema_response(response_content) : response_content
-      FakeResponse.new(content)
+      FakeResponse.new(response_content)
     end
 
-    def with_params(**params)
-      @last_params = params
+    def with_max_output_tokens(max_output_tokens)
+      @last_max_output_tokens = max_output_tokens
       self
     end
 
@@ -67,17 +84,9 @@ module RubyLLMStub
       @last_schema = schema
       self
     end
-
-    private
-
-    def normalize_schema_response(content)
-      JSON.parse(content)
-    rescue JSON::ParserError
-      content
-    end
   end
 
-  def self.chat(**)
+  def self.chat(*, **, &)
     @fake_chat || FakeChat.new
   end
 

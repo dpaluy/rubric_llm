@@ -99,7 +99,18 @@ class TestJudge < Minitest::Test
     judge = RubricLLM::Judge.new(config:)
     judge.call(system_prompt: "You are a judge.", user_prompt: "Evaluate this.")
 
-    assert_equal({ max_tokens: 256 }, chat.last_params)
+    assert_equal 256, chat.last_max_output_tokens
+  end
+
+  def test_call_forwards_temperature
+    chat = RubyLLMStub::FakeChat.new(response_content: '{"score": 0.9}')
+    RubyLLMStub.fake_chat = chat
+
+    config = RubricLLM::Config.new(temperature: 0.25)
+    judge = RubricLLM::Judge.new(config:)
+    judge.call(system_prompt: "You are a judge.", user_prompt: "Evaluate this.")
+
+    assert_in_delta 0.25, chat.last_temperature
   end
 
   def test_call_retries_on_transient_failure

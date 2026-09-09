@@ -2,6 +2,21 @@
 
 require "test_helper"
 
+class TemperatureRecordingChat < RubyLLMStub::FakeChat
+  attr_reader :temperatures
+
+  def initialize(...)
+    super
+    @temperatures = []
+    @temperature_mutex = Mutex.new
+  end
+
+  def with_temperature(value)
+    @temperature_mutex.synchronize { @temperatures << value }
+    super
+  end
+end
+
 class TestEvaluator < Minitest::Test
   include TestSetup
 
@@ -101,6 +116,24 @@ class TestEvaluator < Minitest::Test
     assert_nil RubricLLM.config.custom_prompt
   end
 
+  def test_evaluate_custom_prompt_preserves_nil_temperature
+    chat = TemperatureRecordingChat.new(response_content: '{"score": 0.8, "reasoning": "ok"}')
+    RubyLLMStub.fake_chat = chat
+    config = RubricLLM::Config.new(temperature: nil)
+
+    result = RubricLLM.evaluate(
+      question: "test",
+      answer: "test",
+      metrics: [RubricLLM::Metrics::Relevance],
+      config:,
+      custom_prompt: "Be strict."
+    )
+
+    assert_in_delta 0.8, result.scores[:relevance]
+    assert_equal 1, chat.call_count
+    assert_equal [nil], chat.temperatures
+  end
+
   def test_evaluate_batch_sequential
     stub_judge_response('{"score": 0.9, "reasoning": "good"}')
     dataset = [
@@ -140,6 +173,24 @@ class TestEvaluator < Minitest::Test
     report.results.each_with_index do |result, i|
       assert_equal "q#{i + 1}", result.sample[:question]
     end
+  end
+
+  def test_evaluate_batch_concurrent_preserves_nil_temperature
+    chat = TemperatureRecordingChat.new(response_content: '{"score": 0.85, "reasoning": "ok"}')
+    RubyLLMStub.fake_chat = chat
+    config = RubricLLM::Config.new(temperature: nil)
+    dataset = (1..4).map { |i| { question: "q#{i}", answer: "a#{i}" } }
+
+    report = RubricLLM.evaluate_batch(
+      dataset,
+      metrics: [RubricLLM::Metrics::Relevance],
+      config:,
+      custom_prompt: "Be strict.",
+      concurrency: 2
+    )
+
+    assert_equal([0.85, 0.85, 0.85, 0.85], report.results.map { |result| result.scores[:relevance] })
+    assert_equal [4, [nil, nil, nil, nil]], [chat.call_count, chat.temperatures]
   end
 
   def test_evaluate_batch_accepts_string_keyed_samples

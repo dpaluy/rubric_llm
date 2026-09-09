@@ -21,5 +21,6 @@ jobs:
         with:
           ruby-version: "3.4"
           bundler-cache: true
-      - run: bundle exec rake test
+      - run: bundle exec rake test test_contract
+      - run: bundle exec rubocop
       - uses: rubygems/release-gem@v1

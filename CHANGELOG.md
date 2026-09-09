@@ -5,6 +5,19 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [0.6.0.rc1] - 2026-09-08
+
+This prerelease targets RubyLLM `2.0.0.rc1` and supports RubyLLM 2 only. Applications that use RubyLLM 1.x should stay on RubricLLM `0.5.x`. Stable `0.6.0` waits for the final RubyLLM 2.0 release and the complete Ruby 3.4 and 4.0 test matrix.
+
+### Changed
+
+- Require the exact RubyLLM `2.0.0.rc1` prerelease while the compatibility release is under review; Ruby >= 3.4 remains supported
+- Keep `max_tokens` and `RUBRIC_MAX_TOKENS` as the public RubricLLM setting while RubyLLM maps the limit to the selected provider and protocol
+- Treat explicit `temperature: nil` as an instruction to omit temperature from the provider request. Before 0.6.0.rc1, it selected `RUBRIC_TEMPERATURE` or `0.0`; an omitted temperature still reads `RUBRIC_TEMPERATURE` and defaults to `0.0`
+- Use OpenAI Responses by default through RubyLLM 2. OpenAI-compatible gateways that only accept Chat Completions can set `config.openai_protocol = :chat_completions`
+- Keep RubyLLM transport retries and RubricLLM judge retries separate. With RubyLLM's default `config.max_retries = 3` and RubricLLM's default `max_retries: 2`, a retryable metric failure can produce up to `(3 + 1) * (2 + 1) = 12` HTTP attempts
+- Keep Rails persistence migrations separate. Applications that use RubyLLM's Rails records must follow RubyLLM's upstream 2.0 migration guide
+
 ## [0.5.0] - 2026-08-23
 
 ### Fixed
