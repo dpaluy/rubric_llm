@@ -51,14 +51,13 @@ module RubricLLM
         attempts += 1
         chat = RubyLLM.chat(model: config.judge_model, provider: config.judge_provider)
         chat.with_temperature(config.temperature)
-        chat.with_params(max_tokens: config.max_tokens)
+        chat.with_max_output_tokens(config.max_tokens)
         apply_response_schema(chat)
 
         full_system_prompt = build_system_prompt(system_prompt)
         chat.with_instructions(full_system_prompt)
         response = chat.ask(user_prompt)
-        content = response.content
-        validate_response!(content.is_a?(Hash) ? content : parse_json(content))
+        validate_response!(parse_json(response.content))
       rescue StandardError => e
         raise wrap_error(e) unless transient?(e) && attempts <= config.max_retries
 
@@ -100,17 +99,13 @@ module RubricLLM
     end
 
     def apply_response_schema(chat)
-      return chat unless chat.respond_to?(:with_schema)
       return chat unless structured_output_supported?(chat)
 
       chat.with_schema(METRIC_RESPONSE_SCHEMA)
     end
 
     def structured_output_supported?(chat)
-      return true unless chat.respond_to?(:model)
-      return true unless chat.model.respond_to?(:structured_output?)
-
-      chat.model.structured_output?
+      chat.model.supports?(:structured_output)
     end
 
     def validate_response!(response)

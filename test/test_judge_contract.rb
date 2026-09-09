@@ -15,16 +15,16 @@ class TestJudgeContract < Minitest::Test
     assert_equal RubricLLM::Judge::METRIC_RESPONSE_SCHEMA, chat.last_schema
   end
 
-  def test_call_accepts_schema_parsed_hash_content
-    chat = RubyLLMStub::FakeChat.new(response_content: '{"score": 0.95, "reasoning": "excellent"}')
+  def test_call_preserves_optional_detail_arrays_from_schema_response_text
+    chat = RubyLLMStub::FakeChat.new(response_content: '{"score": 0.95, "claims": [{"claim": "supported"}]}')
     RubyLLMStub.fake_chat = chat
 
     result = judge.call(system_prompt: "test", user_prompt: "test")
 
-    assert_equal({ "score" => 0.95, "reasoning" => "excellent" }, result)
+    assert_equal [{ "claim" => "supported" }], result["claims"]
   end
 
-  def test_call_raises_for_schema_parsed_hash_missing_score
+  def test_call_raises_for_schema_response_text_missing_score
     chat = RubyLLMStub::FakeChat.new(response_content: '{"reasoning": "missing"}')
     RubyLLMStub.fake_chat = chat
 
@@ -33,6 +33,17 @@ class TestJudgeContract < Minitest::Test
     end
 
     assert_includes error.message, "missing required score"
+  end
+
+  def test_call_omits_schema_without_structured_output_support
+    model = RubyLLMStub::FakeModel.new(capabilities: [])
+    chat = RubyLLMStub::FakeChat.new(response_content: '{"score": 0.95}', model:)
+    RubyLLMStub.fake_chat = chat
+
+    result = judge.call(system_prompt: "test", user_prompt: "test")
+
+    assert_in_delta 0.95, result["score"]
+    assert_nil chat.last_schema
   end
 
   def test_call_raises_for_malformed_json

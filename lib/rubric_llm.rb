@@ -143,7 +143,7 @@ module RubricLLM
     def apply_custom_prompt(config, custom_prompt)
       return config unless custom_prompt
 
-      Config.new(**config.to_h.compact, custom_prompt:)
+      Config.new(**config.to_h, custom_prompt:)
     end
 
     def normalize_sample(sample)

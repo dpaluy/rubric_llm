@@ -2,8 +2,19 @@
 
 require "test_helper"
 
+module TestTemperatureSetup
+  def with_temperature_env(value)
+    previous = ENV.fetch("RUBRIC_TEMPERATURE", nil)
+    value.nil? ? ENV.delete("RUBRIC_TEMPERATURE") : ENV["RUBRIC_TEMPERATURE"] = value
+    yield
+  ensure
+    previous.nil? ? ENV.delete("RUBRIC_TEMPERATURE") : ENV["RUBRIC_TEMPERATURE"] = previous
+  end
+end
+
 class TestConfig < Minitest::Test
   include TestSetup
+  include TestTemperatureSetup
 
   def test_defaults
     config = RubricLLM::Config.new
@@ -13,6 +24,22 @@ class TestConfig < Minitest::Test
     assert_in_delta 0.0, config.temperature
     assert_equal 4096, config.max_tokens
     assert_nil config.custom_prompt
+  end
+
+  def test_temperature_uses_environment_when_omitted
+    with_temperature_env("0.7") do
+      config = RubricLLM::Config.new
+
+      assert_in_delta 0.7, config.temperature
+    end
+  end
+
+  def test_explicit_nil_temperature_ignores_environment
+    with_temperature_env("0.7") do
+      config = RubricLLM::Config.new(temperature: nil)
+
+      assert_nil config.temperature
+    end
   end
 
   def test_to_h
@@ -113,7 +140,9 @@ class TestConfig < Minitest::Test
     config = RubricLLM::Config.new
     config.temperature = -1.0
 
-    assert_raises(RubricLLM::ConfigurationError) { config.validate! }
+    error = assert_raises(RubricLLM::ConfigurationError) { config.validate! }
+
+    assert_equal "temperature must be nil or between 0.0 and 2.0", error.message
   end
 
   def test_validate_rejects_temperature_above_two
@@ -162,5 +191,20 @@ class TestConfig < Minitest::Test
     end
 
     assert_equal original_config, RubricLLM.config.to_h
+  end
+
+  def test_temperature_nil_survives_to_h_and_configure_roundtrip
+    with_temperature_env("0.7") do
+      config = RubricLLM::Config.new(temperature: nil)
+      copy = RubricLLM::Config.new(**config.to_h)
+
+      assert_nil config.to_h[:temperature]
+      assert_nil copy.temperature
+
+      RubricLLM.configure { |current| current.temperature = nil }
+      RubricLLM.configure { |current| current.judge_model = "custom" }
+
+      assert_nil RubricLLM.config.temperature
+    end
   end
 end
