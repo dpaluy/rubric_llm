@@ -17,7 +17,7 @@ module RubricLLM
       PROMPT
 
       def call(**sample)
-        backend == :system_one ? call_system_one(**sample) : call_chat(**sample)
+        evaluate_for_backend(sample)
       end
 
       def call_chat(context: [], ground_truth: nil, **)
@@ -37,7 +37,7 @@ module RubricLLM
         result = judge_eval(system_prompt: SYSTEM_PROMPT, user_prompt:)
         {
           score: Float(result["score"]),
-          details: { covered_facts: result["covered_facts"], reasoning: result["reasoning"] }
+          details: chat_details(covered_facts: result["covered_facts"], reasoning: result["reasoning"])
         }
       end
 

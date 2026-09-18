@@ -33,6 +33,20 @@ Or install directly:
 gem install rubric_llm --version 0.6.0
 ```
 
+## TypeSafe judge backends
+
+The default `:chat` backend is unchanged. TypeSafe System One is available directly or as an auditable cascade:
+
+```ruby
+RubricLLM.configure do |config|
+  config.judge_backend = :cascade # :chat | :system_one | :cascade
+  config.typesafe_api_key = ENV.fetch("TYPESAFE_API_KEY")
+  config.typesafe_model = "jev-1.13.0"
+end
+```
+
+Cascade evaluates each built-in metric with typed System One questions, then uses the chat judge when confidence is below the configured threshold, a noul probability is in the uncertainty band, or System One fails. Reports include per-metric escalation counts and both attempts' token usage. See [the TypeSafe judge guide](docs/typesafe-judge.md) for measurement differences, policy injection, audit details, and the calibration harness.
+
 ## Quick Start
 
 ```ruby

@@ -15,7 +15,7 @@ class EvaluationContract < RealClientContract
                                 metrics: [RubricLLM::Metrics::Relevance])
 
     assert_equal({ relevance: 0.9 }, result.scores)
-    assert_equal({ relevance: { reasoning: "offline" } }, result.details)
+    assert_equal({ relevance: { reasoning: "offline", usage: { input_tokens: 10, output_tokens: 5 } } }, result.details)
     assert_equal "Question", result.sample[:question]
     assert_in_delta 0.9, result.overall
     assert_predicate result, :valid?

@@ -5,6 +5,18 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [Unreleased]
+
+### Added
+
+- Add TypeSafe System One as a typed judge backend for all six judge metrics, with preserved probability distributions, usage, latency, and raw responses
+- Add an auditable cascade backend with injectable per-response policy, uncertainty/error fallback to chat, and per-metric escalation statistics in report summaries and CSV/JSON exports
+- Add an offline-testable three-backend calibration harness and TypeSafe judge guide
+
+### Changed
+
+- Record provider-reported chat token usage in metric details so calibration totals include both System One and cascade fallback calls; unavailable usage remains unknown
+
 ## [0.6.0] - 2026-09-18
 
 ### Changed

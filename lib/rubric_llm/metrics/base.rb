@@ -31,8 +31,14 @@ module RubricLLM
       end
 
       def backend
-        configured = judge.respond_to?(:config) ? judge.config.judge_backend : :chat
-        configured == :cascade ? :chat : configured
+        judge.respond_to?(:config) ? judge.config.judge_backend : :chat
+      end
+
+      def evaluate_for_backend(sample)
+        return call_system_one(**sample) if backend == :system_one
+        return judge.evaluate_metric(self, sample) if backend == :cascade
+
+        call_chat(**sample)
       end
 
       def system_one_eval(state:, questions:)
@@ -44,6 +50,12 @@ module RubricLLM
 
       def judge_eval(system_prompt:, user_prompt:)
         judge.call(system_prompt:, user_prompt:)
+      end
+
+      def chat_details(details)
+        usage = judge.respond_to?(:last_usage) ? judge.last_usage : nil
+        usage = nil if usage.respond_to?(:empty?) && usage.empty?
+        details.merge(usage:)
       end
 
       def system_one_details(response, answer: nil)

@@ -29,12 +29,13 @@ module RubricLLM
         ensure_backend_supported!(metric)
 
         sample = { question:, answer:, context:, ground_truth: }
-        result = config.judge_backend == :system_one ? metric.call_system_one(**sample) : metric.call(**sample)
+        result = evaluate_metric(judge, metric, sample)
         scores[name] = result[:score]
         details[name] = result[:details]
       rescue JudgeError => e
         scores[name] = nil
-        details[name] = { error: e.message }
+        usage = judge.respond_to?(:last_usage) ? judge.last_usage : nil
+        details[name] = { error: e.message, backend: config.judge_backend, usage: }
       end
 
       Result.new(scores:, details:, sample: { question:, answer:, context:, ground_truth: })
@@ -44,8 +45,16 @@ module RubricLLM
 
     def build_judge
       return Judges::SystemOne.new(config:) if config.judge_backend == :system_one
+      return Judges::Cascade.new(config:) if config.judge_backend == :cascade
 
       Judges::Chat.new(config:)
+    end
+
+    def evaluate_metric(judge, metric, sample)
+      return metric.call_system_one(**sample) if config.judge_backend == :system_one
+      return metric.call(**sample) unless config.judge_backend == :cascade && metric.respond_to?(:call_system_one)
+
+      judge.evaluate_metric(metric, sample)
     end
 
     def ensure_backend_supported!(metric)
