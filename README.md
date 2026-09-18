@@ -8,15 +8,15 @@ Lightweight LLM evaluation framework for Ruby, inspired by [DeepEval](https://gi
 
 Provider-agnostic evaluation with pluggable metrics, statistical A/B comparison, and test framework integration: no Rails, no ActiveRecord, no UI. Works anywhere Ruby runs.
 
-`0.6.0.rc1` is a prerelease for RubyLLM `2.0.0.rc1`. It supports RubyLLM 2 only. Applications that use RubyLLM 1.x should stay on RubricLLM `0.5.x`. Stable `0.6.0` waits for the final RubyLLM 2.0 release and the complete Ruby 3.4 and 4.0 test matrix.
+RubricLLM `0.6.0` supports RubyLLM `~> 2.0` and Ruby 3.4 or later. Applications that use RubyLLM 1.x should stay on RubricLLM `0.5.x`.
 
 ## Installation
 
-Install the release candidate with both exact prerelease constraints in the same Gemfile change:
+Update both gem constraints together:
 
 ```ruby
-gem "rubric_llm", "0.6.0.rc1"
-gem "ruby_llm", "2.0.0.rc1"
+gem "rubric_llm", "~> 0.6.0"
+gem "ruby_llm", "~> 2.0"
 ```
 
 Then resolve both gems together:
@@ -25,12 +25,12 @@ Then resolve both gems together:
 bundle update rubric_llm ruby_llm
 ```
 
-RubyLLM's upstream prerelease pin command is `bundle add ruby_llm --version 2.0.0.rc1`. If the application still has a RubyLLM 1.x constraint, update both constraints before running Bundler.
+If the application still has a RubyLLM 1.x constraint, update both constraints before running Bundler.
 
 Or install directly:
 
 ```bash
-gem install rubric_llm --version 0.6.0.rc1 --pre
+gem install rubric_llm --version 0.6.0
 ```
 
 ## Quick Start
@@ -403,7 +403,7 @@ Deep dives live in the [project wiki](https://github.com/dpaluy/rubric_llm/wiki)
 ## Requirements
 
 - Ruby >= 3.4
-- [ruby_llm](https://github.com/crmne/ruby_llm) = 2.0.0.rc1 for RubricLLM 0.6.0.rc1
+- [ruby_llm](https://github.com/crmne/ruby_llm) ~> 2.0 for RubricLLM 0.6.0
 - An API key for your chosen LLM provider (set via RubyLLM configuration)
 
 ## Contributing

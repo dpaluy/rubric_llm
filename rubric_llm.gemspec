@@ -38,5 +38,5 @@ Gem::Specification.new do |spec|
   spec.extra_rdoc_files = Dir["README.md", "CHANGELOG.md", "LICENSE.txt"]
 
   spec.add_dependency "csv"
-  spec.add_dependency "ruby_llm", "= 2.0.0.rc1"
+  spec.add_dependency "ruby_llm", "~> 2.0"
 end
