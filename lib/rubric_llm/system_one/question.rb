@@ -4,25 +4,24 @@ require "json"
 
 module RubricLLM
   module SystemOne
-    # rubocop:disable Naming/MethodParameterName
     class Question
       TYPES = %i[choice score noul].freeze
 
       attr_reader :id, :type, :instructions, :criteria
 
-      def self.choice(id, instructions:, criteria: {})
+      def self.choice(id, instructions:, criteria: {}) # rubocop:disable Naming/MethodParameterName
         new(id:, type: :choice, instructions:, criteria:)
       end
 
-      def self.score(id, instructions:, levels: [])
+      def self.score(id, instructions:, levels: []) # rubocop:disable Naming/MethodParameterName
         new(id:, type: :score, instructions:, criteria: levels)
       end
 
-      def self.noul(id, instructions:, criteria: nil)
+      def self.noul(id, instructions:, criteria: nil) # rubocop:disable Naming/MethodParameterName
         new(id:, type: :noul, instructions:, criteria:)
       end
 
-      def initialize(id:, type:, instructions:, criteria: nil)
+      def initialize(id:, type:, instructions:, criteria: nil) # rubocop:disable Naming/MethodParameterName
         raise ConfigurationError, "question id must be a String or Symbol" unless id.is_a?(String) || id.is_a?(Symbol)
 
         @id = immutable_copy(id.to_s)
@@ -127,6 +126,5 @@ module RubricLLM
         value.nil? || (value.respond_to?(:empty?) && value.empty?)
       end
     end
-    # rubocop:enable Naming/MethodParameterName
   end
 end
