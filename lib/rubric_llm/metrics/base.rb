@@ -30,10 +30,55 @@ module RubricLLM
         raise NotImplementedError, "#{self.class}#call must be implemented"
       end
 
+      def backend
+        configured = judge.respond_to?(:config) ? judge.config.judge_backend : :chat
+        configured == :cascade ? :chat : configured
+      end
+
+      def system_one_eval(state:, questions:)
+        runner = judge.is_a?(RubricLLM::Judge) ? Judges::SystemOne.new(config: judge.config) : judge
+        runner.call(state:, questions:)
+      end
+
       private
 
       def judge_eval(system_prompt:, user_prompt:)
         judge.call(system_prompt:, user_prompt:)
+      end
+
+      def system_one_details(response, answer: nil)
+        details = {
+          backend: :system_one,
+          model: response.model,
+          usage: response.usage,
+          latency_ms: response.latency_ms,
+          raw_answers: response.answers.transform_values(&:raw),
+          raw_response: response.raw
+        }
+        details[:confidence] = answer.confidence if answer.respond_to?(:confidence)
+        details[:probability] = answer.probability if answer.respond_to?(:probability)
+        details
+      end
+
+      def combined_system_one_details(responses)
+        {
+          backend: :system_one,
+          model: responses.map(&:model).uniq.one? ? responses.first.model : responses.map(&:model),
+          usage: responses.each_with_object({ "input_tokens" => 0, "output_tokens" => 0 }) do |response, usage|
+            usage.each_key { |key| usage[key] += response.usage.fetch(key, 0) }
+          end,
+          latency_ms: responses.sum(&:latency_ms),
+          raw_answers: responses.each_with_object({}) { |response, raw| raw.merge!(response.answers.transform_values(&:raw)) },
+          raw_responses: responses.map(&:raw)
+        }
+      end
+
+      def sentence_batches(sentences)
+        sentences.each_slice(judge.config.typesafe_sentence_limit).to_a
+      end
+
+      def empty_sentences
+        { score: nil, details: { backend: :system_one, error: "No sentences provided" } }
       end
     end
   end
