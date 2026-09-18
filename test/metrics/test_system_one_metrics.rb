@@ -48,7 +48,19 @@ class TestSystemOneMetrics < Minitest::Test
 
   def test_text_sentences_is_deterministic
     assert_equal ["One.", "Two!", "Three?", "Four"], RubricLLM::Text.sentences(" One.\nTwo! Three? Four ")
+    assert_equal ["The dose is 2.5 mg."], RubricLLM::Text.sentences("The dose is 2.5 mg.")
+    assert_equal ["Visit example.com."], RubricLLM::Text.sentences("Visit example.com.")
+    assert_equal ["He said \"Hello.\"", "Then left."], RubricLLM::Text.sentences("He said \"Hello.\" Then left.")
     assert_empty RubricLLM::Text.sentences(" \n ")
+  end
+
+  def test_sentence_metric_state_retains_internal_punctuation
+    judge = FakeSystemOneMetricJudge.new
+    sample = SAMPLE.merge(answer: "The dose is 2.5 mg. Visit example.com.")
+
+    RubricLLM::Metrics::Faithfulness.new(judge:).call(**sample)
+
+    assert_equal ["The dose is 2.5 mg.", "Visit example.com."], judge.calls.first[:state][:sentences]
   end
 
   def test_faithfulness_question_snapshot_and_mean_min_aggregation
