@@ -48,14 +48,14 @@ module RubricLLM
         { score: Float(result["score"]), details: chat_details(claims: result["claims"], reasoning: result["reasoning"]) }
       end
 
-      def call_system_one(answer:, context: [], **)
+      def call_system_one(answer:, question: "", context: [], **)
         context_chunks = Base.normalize_context(context)
         return { score: nil, details: { error: "No context provided" } } if context_chunks.empty?
 
         sentences = Text.sentences(answer)
         return empty_sentences if sentences.empty?
 
-        responses = sentence_responses(sentences, context_chunks)
+        responses = sentence_responses(question, answer, sentences, context_chunks)
         probabilities = responses.flat_map { |response| response.answers.values.map(&:probability) }
         score = aggregate == :min ? probabilities.min : probabilities.sum / probabilities.length.to_f
         details = combined_system_one_details(responses).merge(
@@ -66,14 +66,14 @@ module RubricLLM
 
       private
 
-      def sentence_responses(sentences, context)
+      def sentence_responses(question, answer, sentences, context)
         offset = 0
         sentence_batches(sentences).map do |batch|
           questions = batch.each_index.map do |index|
             SystemOne::Question.noul("sentence_#{offset + index}", instructions: format(INSTRUCTION, index:))
           end
           offset += batch.length
-          system_one_eval(state: { context:, sentences: batch }, questions:)
+          system_one_eval(state: { question:, answer:, context:, sentences: batch }, questions:)
         end
       end
     end

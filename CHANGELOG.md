@@ -12,6 +12,11 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - Add TypeSafe System One as a typed judge backend for all six judge metrics, with preserved probability distributions, usage, latency, and raw responses
 - Add an auditable cascade backend with injectable per-response policy, uncertainty/error fallback to chat, and per-metric escalation statistics in report summaries and CSV/JSON exports
 - Add an offline-testable three-backend calibration harness and TypeSafe judge guide
+- Support all judge backends in Minitest assertions and RSpec matchers, including chat fallback for custom metrics
+- Preserve custom instructions and complete source context in TypeSafe metric questions
+- Report token usage by provider and model, including calls made by custom metrics; exclude skipped evaluations from fallback rates
+- Honor TypeSafe retry headers, apply configured timeouts to request writes, and accept structured Noul criteria
+- Support expected pass/fail judgments and per-metric score thresholds in the calibration example
 
 ### Changed
 

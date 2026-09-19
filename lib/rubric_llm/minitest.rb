@@ -45,7 +45,7 @@ module RubricLLM
     end
 
     def evaluate_metric(metric_class, config:, **)
-      judge = Judge.new(config:)
+      judge = Evaluator.build_judge(config:)
       metric = metric_class.new(judge:)
       metric.call(**)
     end

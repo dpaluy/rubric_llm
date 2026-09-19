@@ -83,9 +83,7 @@ module RubricLLM
         keys = criteria.keys.map(&:to_s).sort
         raise ConfigurationError, "noul criteria must contain only true and false keys" unless keys == %w[false true]
 
-        return if criteria.values.all? { |value| value.is_a?(String) && !value.empty? }
-
-        raise ConfigurationError, "noul criteria values must be non-empty strings"
+        criteria.each_value { |value| validate_description!(value, "noul criterion", allow_nil: true) }
       end
 
       def wire_criteria

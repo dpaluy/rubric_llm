@@ -2,6 +2,7 @@
 
 require "json"
 require "rubric_llm"
+require_relative "typesafe_calibration_quality"
 
 module TypeSafeCalibration
   module_function
@@ -25,21 +26,16 @@ module TypeSafeCalibration
     pairs.sum { |a, b| (a - b).abs } / pairs.length.to_f
   end
 
-  def run(dataset, config: RubricLLM.config, evaluator: RubricLLM.method(:evaluate_batch))
+  def run(dataset, config: RubricLLM.config, thresholds: {}, evaluator: RubricLLM.method(:evaluate_batch))
+    TypeSafeCalibrationQuality.validate_annotations!(dataset)
+    thresholds = TypeSafeCalibrationQuality.validate_thresholds!(thresholds)
     reports = %i[chat system_one cascade].to_h do |backend|
       backend_config = RubricLLM::Config.new(**config.to_h, judge_backend: backend)
       [backend, evaluator.call(dataset, config: backend_config)]
     end
 
     reports.each do |backend, report|
-      puts "\n#{backend}:"
-      puts report.summary
-      puts "tokens: #{report.total_usage || "unknown (provider did not report usage)"}"
-      puts format("wall time: %.3fs", report.duration)
-      escalations = report.escalation_stats.values
-      escalated = escalations.sum { |value| value[:escalated] }
-      total = escalations.sum { |value| value[:total] }
-      puts "escalation rate: #{total.zero? ? "n/a" : format("%.1f%%", 100.0 * escalated / total)}"
+      TypeSafeCalibrationQuality.print_report(backend, report)
     end
 
     [%i[chat system_one], %i[chat cascade], %i[system_one cascade]].each do |left, right|
@@ -55,6 +51,7 @@ module TypeSafeCalibration
       difference = mad(chat, system_one)
       puts format("%-20s Pearson=%s MAD=%s", metric, display(correlation), display(difference))
     end
+    TypeSafeCalibrationQuality.print_quality(dataset, reports, thresholds)
     reports
   end
 

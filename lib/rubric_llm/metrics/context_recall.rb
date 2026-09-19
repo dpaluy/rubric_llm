@@ -50,7 +50,7 @@ module RubricLLM
         sentences = Text.sentences(ground_truth)
         return empty_sentences if sentences.empty?
 
-        responses = sentence_responses(sentences, context_chunks)
+        responses = sentence_responses(ground_truth, sentences, context_chunks)
         probabilities = responses.flat_map { |response| response.answers.values.map(&:probability) }
         details = combined_system_one_details(responses).merge(probabilities:)
         { score: probabilities.sum / probabilities.length.to_f, details: }
@@ -58,14 +58,14 @@ module RubricLLM
 
       private
 
-      def sentence_responses(sentences, context)
+      def sentence_responses(ground_truth, sentences, context)
         offset = 0
         sentence_batches(sentences).map do |batch|
           questions = batch.each_index.map do |index|
             SystemOne::Question.noul("sentence_#{offset + index}", instructions: format(INSTRUCTION, index:))
           end
           offset += batch.length
-          system_one_eval(state: { context:, sentences: batch }, questions:)
+          system_one_eval(state: { ground_truth:, context:, sentences: batch }, questions:)
         end
       end
     end

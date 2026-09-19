@@ -13,19 +13,27 @@ module RubricLLM
 
     attr_reader :config, :metric_classes
 
+    def self.build_judge(config:)
+      return Judges::SystemOne.new(config:) if config.judge_backend == :system_one
+      return Judges::Cascade.new(config:) if config.judge_backend == :cascade
+
+      Judges::Chat.new(config:)
+    end
+
     def initialize(config:, metrics: nil)
       @config = config
       @metric_classes = metrics || DEFAULT_METRICS
     end
 
     def call(question:, answer:, context: [], ground_truth: nil)
-      judge = build_judge
+      judge = self.class.build_judge(config:)
       scores = {}
       details = {}
 
       metric_classes.each do |metric_class|
-        metric = metric_class.new(judge:)
+        usage_start = judge.usage_attempts.length
         name = metric_name(metric_class)
+        metric = metric_class.new(judge:)
         ensure_backend_supported!(metric)
 
         sample = { question:, answer:, context:, ground_truth: }
@@ -34,21 +42,19 @@ module RubricLLM
         details[name] = result[:details]
       rescue JudgeError => e
         scores[name] = nil
-        usage = judge.respond_to?(:last_usage) ? judge.last_usage : nil
+        usage = UsageSummary.new(judge.usage_attempts.drop(usage_start)).total
         details[name] = { error: e.message, backend: config.judge_backend, usage: }
+      ensure
+        if details[name] && usage_start
+          attempts = judge.usage_attempts.drop(usage_start)
+          details[name] = details[name].merge(usage_attempts: attempts)
+        end
       end
 
       Result.new(scores:, details:, sample: { question:, answer:, context:, ground_truth: })
     end
 
     private
-
-    def build_judge
-      return Judges::SystemOne.new(config:) if config.judge_backend == :system_one
-      return Judges::Cascade.new(config:) if config.judge_backend == :cascade
-
-      Judges::Chat.new(config:)
-    end
 
     def evaluate_metric(judge, metric, sample)
       return metric.call_system_one(**sample) if config.judge_backend == :system_one

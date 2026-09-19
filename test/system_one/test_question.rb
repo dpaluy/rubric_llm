@@ -39,6 +39,28 @@ class TestSystemOneQuestion < Minitest::Test
                  RubricLLM::SystemOne::Question.noul("truth", instructions: "Is it true?").to_h)
   end
 
+  def test_noul_criteria_accepts_json_descriptions_and_null
+    descriptions = ["yes", { "meaning" => "yes" }, ["yes", { "example" => "clear" }], nil]
+
+    descriptions.product(descriptions).each do |yes, no|
+      question = RubricLLM::SystemOne::Question.noul(
+        "truth", instructions: "Is it true?", criteria: { "true" => yes, "false" => no }
+      )
+
+      assert_equal({ "true" => yes, "false" => no }, question.to_h.fetch(:criteria))
+    end
+  end
+
+  def test_noul_criteria_rejects_empty_or_non_json_descriptions
+    [[], {}, { "meaning" => Object.new }].each do |description|
+      assert_raises(RubricLLM::ConfigurationError) do
+        RubricLLM::SystemOne::Question.noul(
+          "truth", instructions: "Is it true?", criteria: { "true" => description, "false" => "No" }
+        )
+      end
+    end
+  end
+
   def test_rejects_invalid_choice_option_counts
     error = assert_raises(RubricLLM::ConfigurationError) do
       RubricLLM::SystemOne::Question.choice("empty", instructions: "Choose", criteria: {})

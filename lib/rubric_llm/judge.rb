@@ -4,6 +4,8 @@ require "json"
 
 module RubricLLM
   class Judge
+    include Judges::UsageTracking
+
     # Failures worth retrying: the same request may succeed later.
     # Everything else (bad key, no credit, malformed request, prompt too long,
     # contract violations in the judge response) fails on the first attempt.
@@ -57,9 +59,7 @@ module RubricLLM
 
         full_system_prompt = build_system_prompt(system_prompt)
         chat.with_instructions(full_system_prompt)
-        response = chat.ask(user_prompt)
-        @last_usage = response.respond_to?(:tokens) ? response.tokens&.to_h : nil
-        @last_usage = nil if @last_usage.respond_to?(:empty?) && @last_usage.empty?
+        response = ask_with_usage(chat, user_prompt)
         validate_response!(parse_json(response.content))
       rescue StandardError => e
         raise wrap_error(e) unless transient?(e) && attempts <= config.max_retries
@@ -90,6 +90,16 @@ module RubricLLM
     end
 
     private
+
+    def ask_with_usage(chat, prompt)
+      @last_usage = nil
+      response = chat.ask(prompt)
+      @last_usage = response.respond_to?(:tokens) ? response.tokens&.to_h : nil
+      @last_usage = nil if @last_usage.respond_to?(:empty?) && @last_usage.empty?
+      response
+    ensure
+      record_usage(backend: :chat, provider: config.judge_provider, model: config.judge_model, usage: @last_usage)
+    end
 
     def transient?(error)
       TRANSIENT_ERRORS.any? { |klass| error.is_a?(klass) }

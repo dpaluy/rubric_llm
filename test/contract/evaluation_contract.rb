@@ -15,7 +15,14 @@ class EvaluationContract < RealClientContract
                                 metrics: [RubricLLM::Metrics::Relevance])
 
     assert_equal({ relevance: 0.9 }, result.scores)
-    assert_equal({ relevance: { reasoning: "offline", usage: { input_tokens: 10, output_tokens: 5 } } }, result.details)
+    assert_equal "offline", result.details.dig(:relevance, :reasoning)
+    assert_equal({ input_tokens: 10, output_tokens: 5 }, result.details.dig(:relevance, :usage))
+    attempt = result.details.fetch(:relevance).fetch(:usage_attempts).fetch(0)
+
+    assert_equal :chat, attempt[:backend]
+    assert_equal :openai, attempt[:provider]
+    assert_equal configuration.judge_model, attempt[:model]
+    assert_equal({ input_tokens: 10, output_tokens: 5 }, attempt[:usage])
     assert_equal "Question", result.sample[:question]
     assert_in_delta 0.9, result.overall
     assert_predicate result, :valid?

@@ -3,7 +3,11 @@
 require "test_helper"
 
 class TestSystemOneClient < Minitest::Test # rubocop:disable Metrics/ClassLength
-  FakeHTTPResponse = Struct.new(:code, :body)
+  FakeHTTPResponse = Struct.new(:code, :body, :headers) do
+    def [](name)
+      headers&.find { |key, _value| key.to_s.casecmp?(name) }&.last
+    end
+  end
 
   class SequenceTransport
     attr_reader :calls, :requests
@@ -111,6 +115,84 @@ class TestSystemOneClient < Minitest::Test # rubocop:disable Metrics/ClassLength
     assert_in_delta 0.92, result.answers["urgent"].probability
     assert_equal [0.25, 0.5], sleeper.delays
     assert_equal 3, transport.calls
+  end
+
+  def test_http_transport_sets_write_timeout
+    config = RubricLLM::Config.new(typesafe_api_key: "secret-key", typesafe_timeout: 7.5)
+    reply = response(200, noul_body)
+    http = Object.new
+    http.define_singleton_method(:request) { |_request| reply }
+    options = nil
+
+    with_singleton_method(Net::HTTP, :start, lambda { |_host, _port, **received_options, &block|
+      options = received_options
+      block.call(http)
+    }) do
+      RubricLLM::SystemOne::Client.new(config:).call(state: "x", questions: [@questions.first])
+    end
+
+    assert_equal config.typesafe_timeout, options.fetch(:write_timeout)
+  end
+
+  def test_retry_after_seconds_and_milliseconds_override_backoff
+    [
+      [{ "Retry-After" => "2" }, 2.0],
+      [{ "retry-after-ms" => "750" }, 0.75],
+      [{ "retry-after-ms" => "60000" }, 60.0],
+      [{ "retry-after-ms" => "invalid", "Retry-After" => "3" }, 3.0]
+    ].each do |headers, expected_delay|
+      sleeper = Sleeper.new
+      transport = SequenceTransport.new(response(429, "busy", headers:), response(200, noul_body))
+
+      client(transport:, sleeper:).call(state: "x", questions: [@questions.first])
+
+      assert_equal [expected_delay], sleeper.delays
+    end
+  end
+
+  def test_retry_after_http_date_uses_time_until_the_date
+    now = Time.utc(2026, 9, 19, 12)
+    sleeper = Sleeper.new
+    transport = SequenceTransport.new(
+      response(429, "busy", headers: { "Retry-After" => (now + 4).httpdate }),
+      response(200, noul_body)
+    )
+
+    with_singleton_method(Time, :now, -> { now }) do
+      client(transport:, sleeper:).call(state: "x", questions: [@questions.first])
+    end
+
+    assert_equal [4.0], sleeper.delays
+  end
+
+  def test_excessive_retry_after_http_date_uses_exponential_backoff
+    now = Time.utc(2026, 9, 19, 12)
+    sleeper = Sleeper.new
+    transport = SequenceTransport.new(
+      response(429, "busy", headers: { "Retry-After" => (now + 61).httpdate }),
+      response(200, noul_body)
+    )
+
+    with_singleton_method(Time, :now, -> { now }) do
+      client(transport:, sleeper:).call(state: "x", questions: [@questions.first])
+    end
+
+    assert_equal [0.25], sleeper.delays
+  end
+
+  def test_invalid_or_excessive_retry_after_uses_exponential_backoff
+    [
+      { "Retry-After" => "invalid" },
+      { "Retry-After" => "61" },
+      { "retry-after-ms" => "60001" }
+    ].each do |headers|
+      sleeper = Sleeper.new
+      transport = SequenceTransport.new(response(429, "busy", headers:), response(200, noul_body))
+
+      client(transport:, sleeper:).call(state: "x", questions: [@questions.first])
+
+      assert_equal [0.25], sleeper.delays
+    end
   end
 
   def test_timeout_is_retried_then_wrapped_without_key
@@ -259,8 +341,20 @@ class TestSystemOneClient < Minitest::Test # rubocop:disable Metrics/ClassLength
     RubricLLM::SystemOne::Client.new(config: @config, transport:, sleeper:)
   end
 
-  def response(code, body)
-    FakeHTTPResponse.new(code.to_s, body)
+  def with_singleton_method(object, name, implementation)
+    singleton = object.singleton_class
+    defined_here = singleton.method_defined?(name, false)
+    original = object.method(name)
+    singleton.remove_method(name) if defined_here
+    object.define_singleton_method(name, implementation)
+    yield
+  ensure
+    singleton.remove_method(name)
+    object.define_singleton_method(name, original) if defined_here
+  end
+
+  def response(code, body, headers: {})
+    FakeHTTPResponse.new(code.to_s, body, headers)
   end
 
   def noul_body

@@ -2,18 +2,25 @@
 
 require "json"
 require "net/http"
+require "time"
 require "uri"
+require_relative "request_tracking"
 
 module RubricLLM
   module SystemOne
     class Client
       BODY_EXCERPT_LENGTH = 500
+      MAX_RETRY_AFTER = 60.0
       TRANSIENT_EXCEPTIONS = [Net::OpenTimeout, Net::ReadTimeout, Timeout::Error].freeze
+
+      attr_reader :usage_attempts
 
       def initialize(config:, transport: nil, sleeper: Kernel)
         @config = config
         @transport = transport || method(:perform_http)
         @sleeper = sleeper
+        @request_tracking = RequestTracking.new
+        @usage_attempts = @request_tracking.usage_attempts
       end
 
       def call(state:, questions:, model: @config.typesafe_model)
@@ -75,7 +82,11 @@ module RubricLLM
         loop do
           attempts += 1
           begin
-            response = @transport.call(uri: endpoint, request: build_request(payload), timeout: @config.typesafe_timeout)
+            uri = endpoint
+            request = build_request(payload)
+            response = @request_tracking.with_unknown_on_error(payload[:model]) do
+              @transport.call(uri:, request:, timeout: @config.typesafe_timeout)
+            end
           rescue *TRANSIENT_EXCEPTIONS => e
             raise JudgeError, "System One request timed out: #{e.message}" if attempts > @config.max_retries
 
@@ -83,21 +94,22 @@ module RubricLLM
             next
           end
 
-          status = Integer(response.code)
-          return parse_body(response.body) if status.between?(200, 299)
+          status = @request_tracking.with_unknown_on_error(payload[:model]) { Integer(response.code) }
+          if status.between?(200, 299)
+            parsed = @request_tracking.with_unknown_on_error(payload[:model]) { parse_body(response.body) }
+            return @request_tracking.capture_response(payload[:model], parsed)
+          end
 
+          @request_tracking.record_unknown(payload[:model])
           error = http_error(status, response.body)
           raise error unless retryable_status?(status) && attempts <= @config.max_retries
 
-          backoff(attempts)
+          backoff(attempts, response:)
         end
       end
 
       def endpoint
-        base = URI.parse(@config.typesafe_base_url)
-        path = base.path.sub(%r{/+\z}, "")
-        base.path = "#{path}/systemone"
-        base
+        URI.parse(@config.typesafe_base_url).tap { |base| base.path = "#{base.path.sub(%r{/+\z}, "")}/systemone" }
       end
 
       def build_request(payload)
@@ -109,7 +121,8 @@ module RubricLLM
       end
 
       def perform_http(uri:, request:, timeout:)
-        Net::HTTP.start(uri.host, uri.port, use_ssl: uri.scheme == "https", open_timeout: timeout, read_timeout: timeout) do |http|
+        options = { use_ssl: uri.scheme == "https", open_timeout: timeout, read_timeout: timeout, write_timeout: timeout }
+        Net::HTTP.start(uri.host, uri.port, **options) do |http|
           http.request(request)
         end
       end
@@ -132,7 +145,7 @@ module RubricLLM
         raise JudgeError, "System One response question ids do not match the request" unless raw_answers.keys.sort == questions.keys.sort
 
         answers = questions.to_h { |id, question| [id, build_answer(raw_answers.fetch(id), question)] }
-        usage = validate_usage!(raw["usage"])
+        usage = @request_tracking.validate_usage!(raw["usage"])
         Response.new(answers:, usage:, model:, latency_ms:, raw:)
       end
 
@@ -144,17 +157,6 @@ module RubricLLM
         question.type == :noul ? klass.new(raw) : klass.new(raw, question)
       end
 
-      def validate_usage!(usage)
-        raise JudgeError, "System One usage must be an object" unless usage.is_a?(Hash)
-
-        %w[input_tokens output_tokens].to_h do |key|
-          value = usage[key]
-          raise JudgeError, "System One usage #{key} must be a non-negative integer" unless value.is_a?(Integer) && value >= 0
-
-          [key, value]
-        end
-      end
-
       def retryable_status?(status)
         status == 429 || status >= 500
       end
@@ -164,8 +166,21 @@ module RubricLLM
         JudgeError.new("System One HTTP #{status}: #{excerpt}")
       end
 
-      def backoff(attempt)
-        @sleeper.sleep(@config.retry_base_delay * (2**(attempt - 1)))
+      def backoff(attempt, response: nil)
+        @sleeper.sleep(retry_after_delay(response) || (@config.retry_base_delay * (2**(attempt - 1))))
+      end
+
+      def retry_after_delay(response)
+        return unless response
+
+        milliseconds = Float(response["retry-after-ms"], exception: false)
+        delay = milliseconds / 1000.0 if milliseconds&.between?(0, MAX_RETRY_AFTER * 1000)
+        retry_after = response["retry-after"]
+        delay ||= Float(retry_after, exception: false) if retry_after
+        delay ||= [Time.httpdate(retry_after) - Time.now, 0].max if retry_after
+        delay if delay&.finite? && delay.between?(0, MAX_RETRY_AFTER)
+      rescue ArgumentError, TypeError
+        nil
       end
 
       def sanitized(error)

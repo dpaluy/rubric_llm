@@ -27,12 +27,20 @@ class TestJudgeBackends < Minitest::Test
   end
 
   def test_system_one_runner_delegates_to_client
+    response = RubricLLM::SystemOne::Response.new(
+      answers: {}, usage: { "input_tokens" => 1, "output_tokens" => 1 }, model: "offline", latency_ms: 0, raw: {}
+    )
+    calls = []
     client = Object.new
-    client.define_singleton_method(:call) { |state:, questions:| [state, questions] }
+    client.define_singleton_method(:call) do |state:, questions:|
+      calls << [state, questions]
+      response
+    end
     config = RubricLLM::Config.new
     runner = RubricLLM::Judges::SystemOne.new(config:, client:)
 
-    assert_equal [{ answer: "a" }, [:question]], runner.call(state: { answer: "a" }, questions: [:question])
+    assert_same response, runner.call(state: { answer: "a" }, questions: [:question])
+    assert_equal [[{ answer: "a" }, [:question]]], calls
     assert_same config, runner.config
   end
 
