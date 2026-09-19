@@ -20,6 +20,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Changed
 
+- Include typed judge evidence and cascade fallback reasons in Minitest and RSpec failure messages without dumping raw responses
 - Escalate conflicting high correctness and contradiction judgments under the default cascade policy without changing direct System One scores
 - Batch context precision by the existing item limit with global answer IDs, per-batch state, and complete score/usage aggregation
 - Explain HTTP 413 size failures and document that item batching does not bound request tokens or shared state size

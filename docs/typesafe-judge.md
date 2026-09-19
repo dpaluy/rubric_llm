@@ -18,7 +18,7 @@ end
 
 Use chat when you need the established claim-extraction behavior. Use System One for low-latency typed judgments and full probability distributions. Use cascade when most samples can use System One but uncertain cases need the chat judge. A custom policy may be supplied as `config.cascade_policy = ->(response) { ... }`; it receives the actual `RubricLLM::SystemOne::Response` for each request. Returning truthy escalates that metric.
 
-The Minitest assertions and RSpec matchers honor `config.judge_backend`. A helper configured for `:system_one` or `:cascade` uses that backend instead of creating a chat judge.
+The Minitest assertions and RSpec matchers honor `config.judge_backend`. A helper configured for `:system_one` or `:cascade` uses that backend instead of creating a chat judge. Failure messages include available model, probability, confidence, contradiction, escalation, and error details. Cascade messages also include the original System One attempt. RSpec includes these details in both normal and negated failure messages. Diagnostic collections show at most six items and long diagnostic values are truncated after 240 characters; raw provider responses are not printed. Existing chat claims or reasoning remain available.
 
 ## Measurement differences
 

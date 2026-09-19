@@ -1,6 +1,7 @@
 # frozen_string_literal: true
 
 require "rubric_llm"
+require_relative "failure_details"
 
 module RubricLLM
   module RSpecMatchers
@@ -40,6 +41,10 @@ module RubricLLM
 
       private
 
+      def failure_details
+        FailureDetails.format(result[:details])
+      end
+
       def require_context!(context)
         Metrics::Base.require_context!(context)
       end
@@ -66,11 +71,11 @@ module RubricLLM
       end
 
       def failure_message
-        "expected faithfulness >= #{threshold}, got #{result[:score] || "nil"}"
+        "expected faithfulness >= #{threshold}, got #{result[:score] || "nil"}#{failure_details}"
       end
 
       def failure_message_when_negated
-        "expected faithfulness < #{threshold}, got #{result[:score]}"
+        "expected faithfulness < #{threshold}, got #{result[:score]}#{failure_details}"
       end
     end
 
@@ -87,11 +92,11 @@ module RubricLLM
       end
 
       def failure_message
-        "expected correctness >= #{threshold}, got #{result[:score] || "nil"}"
+        "expected correctness >= #{threshold}, got #{result[:score] || "nil"}#{failure_details}"
       end
 
       def failure_message_when_negated
-        "expected correctness < #{threshold}, got #{result[:score]}"
+        "expected correctness < #{threshold}, got #{result[:score]}#{failure_details}"
       end
     end
 
@@ -107,11 +112,11 @@ module RubricLLM
       end
 
       def failure_message
-        "expected relevance >= #{threshold}, got #{result[:score] || "nil"}"
+        "expected relevance >= #{threshold}, got #{result[:score] || "nil"}#{failure_details}"
       end
 
       def failure_message_when_negated
-        "expected relevance < #{threshold}, got #{result[:score]}"
+        "expected relevance < #{threshold}, got #{result[:score]}#{failure_details}"
       end
     end
 
@@ -130,11 +135,11 @@ module RubricLLM
       end
 
       def failure_message
-        "expected hallucination (faithfulness < #{threshold}), got #{result[:score] || "nil"}"
+        "expected hallucination (faithfulness < #{threshold}), got #{result[:score] || "nil"}#{failure_details}"
       end
 
       def failure_message_when_negated
-        "expected no hallucination (faithfulness >= #{threshold}), got #{result[:score] || "nil"}"
+        "expected no hallucination (faithfulness >= #{threshold}), got #{result[:score] || "nil"}#{failure_details}"
       end
     end
   end
