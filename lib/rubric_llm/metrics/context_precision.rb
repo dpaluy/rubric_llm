@@ -43,13 +43,24 @@ module RubricLLM
         context_chunks = Base.normalize_context(context)
         return { score: nil, details: { error: "No context provided" } } if context_chunks.empty?
 
-        questions = context_chunks.each_index.map do |index|
-          SystemOne::Question.noul("context_#{index}", instructions: format(INSTRUCTION, index:))
-        end
-        response = system_one_eval(state: { question:, context: context_chunks }, questions:)
-        probabilities = response.answers.values.map(&:probability)
-        details = system_one_details(response).merge(probabilities:)
+        responses = context_responses(question, context_chunks)
+        probabilities = responses.flat_map { |response| response.answers.values.map(&:probability) }
+        details = responses.one? ? system_one_details(responses.first) : combined_system_one_details(responses)
+        details = details.merge(probabilities:)
         { score: probabilities.sum / probabilities.length.to_f, details: }
+      end
+
+      private
+
+      def context_responses(question, contexts)
+        offset = 0
+        contexts.each_slice(judge.config.typesafe_sentence_limit).map do |batch|
+          questions = batch.each_index.map do |index|
+            SystemOne::Question.noul("context_#{offset + index}", instructions: format(INSTRUCTION, index:))
+          end
+          offset += batch.length
+          system_one_eval(state: { question:, context: batch }, questions:)
+        end
       end
     end
   end

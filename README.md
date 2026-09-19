@@ -47,7 +47,7 @@ RubricLLM.configure do |config|
 end
 ```
 
-Cascade evaluates each built-in metric with typed System One questions, then uses the chat judge when confidence is below the configured threshold, a noul probability is in the uncertainty band, or System One fails. Reports include per-metric escalation counts and both attempts' token usage. See [the TypeSafe judge guide](docs/typesafe-judge.md) for measurement differences, policy injection, audit details, and the calibration harness.
+Cascade evaluates each built-in metric with typed System One questions, then uses the chat judge when confidence is below the configured threshold, a noul probability is in the uncertainty band, high correctness and contradiction judgments conflict, or System One fails. Reports include per-metric escalation counts and both attempts' token usage. See [the TypeSafe judge guide](docs/typesafe-judge.md) for measurement differences, policy injection, audit details, and the calibration harness.
 
 Minitest assertions and RSpec matchers use the configured backend. Custom instructions also apply to TypeSafe questions. Reports exclude skipped metrics from fallback rates and separate token usage by provider and model with `report.usage_by_model`.
 

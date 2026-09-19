@@ -26,7 +26,7 @@ System One cannot generate claims. Faithfulness, factual accuracy, and context r
 
 `custom_prompt` is added to every typed question. Its additional instructions do not replace the metric's base instructions or structured criteria.
 
-System One confidence describes concentration of the returned probability distribution. It does **not** establish that an answer is correct. The default cascade policy uses confidence and the configured noul uncertainty band only to decide when another judge should review a metric.
+System One confidence describes concentration of the returned probability distribution. It does **not** establish that an answer is correct. The default cascade policy uses confidence and the configured noul uncertainty band to decide when another judge should review a metric. It also escalates conflicting correctness signals: a normalized correctness score of at least 0.75 (the top two matching levels) with a contradiction probability above the uncertainty band's upper bound. For example, score 1.0 and contradiction probability 0.95 now trigger chat review. A low correctness score with a high contradiction probability remains a consistent negative result and does not trigger this rule. The original typed evidence and escalation reason are retained. This rule changes cascade routing only; direct `:system_one` correctness still returns the normalized score and records contradiction separately. A supplied `cascade_policy` replaces all default rules, including this conflict check.
 
 System One details retain the resolved model, token usage, latency, probability distributions, typed answers, and every raw chunk response. Cascade details additionally retain the System One attempt, escalation decision and reason, and fallback error when chat fails. `Report#summary`, CSV, and JSON expose per-metric escalation counts. A skipped metric is excluded from the escalation denominator.
 
@@ -34,7 +34,15 @@ Usage attempts are recorded at the judge call boundary, including calls from leg
 
 TypeSafe transport retries are recorded separately. A timeout followed by a successful retry leaves the total unknown because the timed-out request may have consumed tokens. The successful response's usage remains available in the attempt records.
 
-TypeSafe documents model-specific request budgets (currently 64k total request tokens and 32k for state plus the longest question for listed Jev models) and dynamic rate limits. Consult [TypeSafe models](https://docs.typesafe.ai/models) rather than assuming a byte limit.
+## Request size and batching
+
+Context precision sends at most `typesafe_sentence_limit` retrieved chunks per request. Each batch contains the question and only that batch's context. Answer IDs remain global (`context_0`, `context_1`, and so on), while instructions refer to the batch-local context positions. The final score averages all chunk probabilities, including the last incomplete batch. Reports retain the responses, usage, and latency of every completed batch. A failed batch does not produce a partial score; cascade can review the complete metric with chat.
+
+`typesafe_sentence_limit` limits item count, not token count. TypeSafe documents a 64k total request budget and a 32k budget for state plus the longest question for the listed Jev models. Those budgets include question instructions and criteria. Consult [TypeSafe models](https://docs.typesafe.ai/models) for the current limits.
+
+Sentence metrics retain their full supporting state in each batch: faithfulness keeps context, question, and answer; factual accuracy keeps answer and ground truth; context recall keeps context and ground truth. Reducing the sentence limit cannot make an oversized shared state fit. Context-precision batches can also exceed the token budget when individual chunks are large. Select or reduce the source material before evaluation; RubricLLM does not truncate evidence or estimate provider tokens from byte counts.
+
+Provider size errors remain visible. HTTP 413 produces an explicit size-limit error without a retry and recommends reducing state or questions. Under `:cascade`, that failure triggers chat review and retains the error and unknown TypeSafe usage. Chat has its own limits and can also fail. Repeating the same oversized input can repeat the fallback; it does not change the backend for later samples.
 
 ## Calibration
 

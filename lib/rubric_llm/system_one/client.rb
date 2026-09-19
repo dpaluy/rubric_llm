@@ -163,7 +163,7 @@ module RubricLLM
 
       def http_error(status, body)
         excerpt = body.to_s.gsub(@config.typesafe_api_key.to_s, "[REDACTED]")[0, BODY_EXCERPT_LENGTH]
-        JudgeError.new("System One HTTP #{status}: #{excerpt}")
+        JudgeError.new("System One HTTP #{status}: #{"too large; reduce state/questions. " if status == 413}#{excerpt}")
       end
 
       def backoff(attempt, response: nil)

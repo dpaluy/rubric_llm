@@ -77,6 +77,9 @@ module RubricLLM
           return nil
         end
 
+        conflict = correctness_conflict(response)
+        return conflict if conflict
+
         response.answers.each_value do |answer|
           if answer.respond_to?(:confidence) && !answer.confidence.nil? && answer.confidence < config.cascade_confidence
             return "confidence #{answer.confidence} below #{config.cascade_confidence}"
@@ -86,6 +89,16 @@ module RubricLLM
           end
         end
         nil
+      end
+
+      def correctness_conflict(response)
+        score = response.answers["correctness"]
+        contradiction = response.answers["contradiction"]
+        return unless score.is_a?(RubricLLM::SystemOne::Answer::Score) &&
+                      contradiction.is_a?(RubricLLM::SystemOne::Answer::Noul)
+        return unless score.normalized >= 0.75 && contradiction.probability > config.cascade_noul_band.end
+
+        "correctness score #{score.normalized} conflicts with contradiction probability #{contradiction.probability}"
       end
 
       def system_one_failure(error)
