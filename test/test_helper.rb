@@ -21,10 +21,11 @@ module RubyLLMStub
   end
 
   class FakeResponse
-    attr_reader :content
+    attr_reader :content, :tokens
 
-    def initialize(content)
+    def initialize(content, tokens: nil)
       @content = content
+      @tokens = tokens
     end
   end
 
@@ -34,11 +35,12 @@ module RubyLLMStub
                 :last_temperature, :last_max_output_tokens, :call_count, :model
 
     def initialize(response_content: '{"score": 0.9, "reasoning": "test"}', fail_times: 0, error_class: RuntimeError,
-                   model: nil)
+                   model: nil, response_tokens: nil)
       @response_content = response_content
       @fail_times = fail_times
       @error_class = error_class
       @model = model || FakeModel.new
+      @response_tokens = response_tokens
       @call_count = 0
     end
 
@@ -72,7 +74,7 @@ module RubyLLMStub
 
       raise @error_class, "transient failure" if @call_count <= @fail_times
 
-      FakeResponse.new(response_content)
+      FakeResponse.new(response_content, tokens: @response_tokens)
     end
 
     def with_max_output_tokens(max_output_tokens)
@@ -99,7 +101,8 @@ module RubyLLMStub
   end
 end
 
-# Keep a handle on the real RubyLLM so tests can name its error classes.
+# Keep handles on real RubyLLM types before replacing its top-level constant.
+RubyLLMTokens = RubyLLM::Tokens
 RubyLLMReal = RubyLLM if defined?(RubyLLM) && RubyLLM != RubyLLMStub
 
 # Replace RubyLLM with our stub for all tests

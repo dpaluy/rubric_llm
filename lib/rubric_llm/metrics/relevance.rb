@@ -3,6 +3,14 @@
 module RubricLLM
   module Metrics
     class Relevance < Base
+      INSTRUCTION = "How well does `answer` answer `question`?"
+      LEVELS = [
+        "The answer ignores the question.",
+        "The answer touches the topic but does not answer the question.",
+        "The answer partially answers the question.",
+        "The answer answers the question with minor gaps or padding.",
+        "The answer directly and completely answers the question."
+      ].freeze
       SYSTEM_PROMPT = <<~PROMPT
         You are an evaluation judge. Assess whether the answer is relevant to the question.
         A relevant answer directly addresses what was asked.
@@ -14,7 +22,11 @@ module RubricLLM
         }
       PROMPT
 
-      def call(question:, answer:, **)
+      def call(**sample)
+        evaluate_for_backend(sample)
+      end
+
+      def call_chat(question:, answer:, **)
         user_prompt = <<~PROMPT
           Question: #{question}
 
@@ -22,18 +34,18 @@ module RubricLLM
 
           Evaluate how relevant the answer is to the question.
         PROMPT
-
         result = judge_eval(system_prompt: SYSTEM_PROMPT, user_prompt:)
-        normalize(result)
+        { score: Float(result["score"]), details: chat_details(reasoning: result["reasoning"]) }
       end
 
-      private
-
-      def normalize(result)
-        {
-          score: Float(result["score"]),
-          details: { reasoning: result["reasoning"] }
-        }
+      def call_system_one(question:, answer:, **)
+        questions = [SystemOne::Question.score("relevance", instructions: INSTRUCTION, levels: LEVELS)]
+        response = system_one_eval(state: { question:, answer: }, questions:)
+        scored = response.answers.fetch("relevance")
+        details = system_one_details(response, answer: scored).merge(
+          score: scored.score, legend: scored.legend, probabilities: scored.probabilities
+        )
+        { score: scored.normalized, details: }
       end
     end
   end
