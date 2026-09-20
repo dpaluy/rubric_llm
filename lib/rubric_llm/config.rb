@@ -8,13 +8,13 @@ module RubricLLM
 
     attr_accessor :judge_model, :judge_provider, :temperature, :max_tokens, :custom_prompt,
                   :max_retries, :retry_base_delay, :concurrency, :judge_backend, :typesafe_api_key,
-                  :typesafe_model, :typesafe_base_url, :typesafe_timeout, :cascade_confidence,
+                  :decision_model, :typesafe_base_url, :typesafe_timeout, :cascade_confidence,
                   :cascade_noul_band, :cascade_policy, :typesafe_sentence_limit
 
     def initialize(judge_model: nil, judge_provider: nil, # rubocop:disable Metrics/ParameterLists, Metrics/CyclomaticComplexity, Metrics/PerceivedComplexity
                    temperature: Float(ENV.fetch("RUBRIC_TEMPERATURE", "0.0")), max_tokens: nil,
                    custom_prompt: nil, max_retries: nil, retry_base_delay: nil, concurrency: nil,
-                   judge_backend: nil, typesafe_api_key: nil, typesafe_model: nil, typesafe_base_url: nil,
+                   judge_backend: nil, typesafe_api_key: nil, decision_model: nil, typesafe_base_url: nil,
                    typesafe_timeout: nil, cascade_confidence: nil, cascade_noul_band: nil,
                    cascade_policy: nil, typesafe_sentence_limit: nil, validate: false)
       @judge_model = judge_model || ENV.fetch("RUBRIC_JUDGE_MODEL", "gpt-4o")
@@ -27,7 +27,7 @@ module RubricLLM
       @concurrency = concurrency || Integer(ENV.fetch("RUBRIC_CONCURRENCY", "1"))
       @judge_backend = (judge_backend || ENV.fetch("RUBRIC_JUDGE_BACKEND", "chat")).to_sym
       @typesafe_api_key = typesafe_api_key || ENV.fetch("TYPESAFE_API_KEY", nil)
-      @typesafe_model = typesafe_model || ENV.fetch("RUBRIC_TYPESAFE_MODEL", "jev-latest")
+      @decision_model = decision_model || ENV.fetch("RUBRIC_DECISION_MODEL", "jev-latest")
       @typesafe_base_url = typesafe_base_url || ENV.fetch("RUBRIC_TYPESAFE_BASE_URL", "https://api.typesafe.ai/v1")
       @typesafe_timeout = typesafe_timeout || Float(ENV.fetch("RUBRIC_TYPESAFE_TIMEOUT", "10"))
       @cascade_confidence = cascade_confidence || Float(ENV.fetch("RUBRIC_CASCADE_CONFIDENCE", "0.70"))
@@ -54,7 +54,7 @@ module RubricLLM
     def to_h
       {
         judge_model:, judge_provider:, temperature:, max_tokens:, custom_prompt:, max_retries:,
-        retry_base_delay:, concurrency:, judge_backend:, typesafe_api_key:, typesafe_model:,
+        retry_base_delay:, concurrency:, judge_backend:, typesafe_api_key:, decision_model:,
         typesafe_base_url:, typesafe_timeout:, cascade_confidence:, cascade_noul_band:,
         cascade_policy:, typesafe_sentence_limit:
       }
@@ -137,9 +137,9 @@ module RubricLLM
       if %i[system_one cascade].include?(judge_backend) && (typesafe_api_key.nil? || typesafe_api_key.to_s.strip.empty?)
         raise ConfigurationError, "typesafe_api_key is required for #{judge_backend} backend"
       end
-      return if typesafe_model.is_a?(String) && !typesafe_model.strip.empty?
+      return if decision_model.is_a?(String) && !decision_model.strip.empty?
 
-      raise ConfigurationError, "typesafe_model must be a non-empty string"
+      raise ConfigurationError, "decision_model must be a non-empty string"
     end
 
     def validate_typesafe_limits

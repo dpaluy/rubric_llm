@@ -41,7 +41,7 @@ class TestSystemOneClientUsage < Minitest::Test
   def setup
     super
     @config = RubricLLM::Config.new(
-      typesafe_api_key: "offline", typesafe_model: "requested-model", max_retries: 2, retry_base_delay: 0
+      typesafe_api_key: "offline", decision_model: "requested-model", max_retries: 2, retry_base_delay: 0
     )
     @question = RubricLLM::SystemOne::Question.noul("urgent", instructions: "Is it urgent?")
   end

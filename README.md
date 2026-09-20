@@ -43,7 +43,7 @@ The default `:chat` backend is unchanged. TypeSafe System One is available direc
 RubricLLM.configure do |config|
   config.judge_backend = :cascade # :chat | :system_one | :cascade
   config.typesafe_api_key = ENV.fetch("TYPESAFE_API_KEY")
-  config.typesafe_model = "jev-1.13.0"
+  config.decision_model = "jev-1.13.0"
 end
 ```
 

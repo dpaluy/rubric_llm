@@ -20,6 +20,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Changed
 
+- Name the decision model setting `decision_model` and its environment variable `RUBRIC_DECISION_MODEL`
 - Include typed judge evidence and cascade fallback reasons in Minitest and RSpec failure messages without dumping raw responses
 - Escalate conflicting high correctness and contradiction judgments under the default cascade policy without changing direct System One scores
 - Batch context precision by the existing item limit with global answer IDs, per-batch state, and complete score/usage aggregation

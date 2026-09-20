@@ -285,7 +285,7 @@ class TestSystemOneClient < Minitest::Test # rubocop:disable Metrics/ClassLength
       end
     end
 
-    config = RubricLLM::Config.new(typesafe_api_key: "secret-key", typesafe_model: 123)
+    config = RubricLLM::Config.new(typesafe_api_key: "secret-key", decision_model: 123)
     assert_raises(RubricLLM::ConfigurationError) do
       RubricLLM::SystemOne::Client.new(config:, transport:).call(state: "x", questions: [@questions.first])
     end

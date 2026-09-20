@@ -19,7 +19,7 @@ module RubricLLM
         if usage_start
           usage_attempts.concat(client.usage_attempts.drop(usage_start))
         else
-          record_usage(backend: :system_one, provider: :typesafe, model: response&.model || config.typesafe_model, usage: response&.usage)
+          record_usage(backend: :system_one, provider: :typesafe, model: response&.model || config.decision_model, usage: response&.usage)
         end
       end
 

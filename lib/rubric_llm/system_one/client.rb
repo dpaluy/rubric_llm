@@ -23,7 +23,7 @@ module RubricLLM
         @usage_attempts = @request_tracking.usage_attempts
       end
 
-      def call(state:, questions:, model: @config.typesafe_model)
+      def call(state:, questions:, model: @config.decision_model)
         validate_call!(state, questions, model)
         indexed = questions.to_h { |question| [question.id, question] }
         payload = { state:, model:, questions: indexed.transform_values(&:to_h) }

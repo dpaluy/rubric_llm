@@ -4,7 +4,7 @@ require "test_helper"
 
 class TestSystemOneConfig < Minitest::Test
   ENV_KEYS = %w[
-    RUBRIC_JUDGE_BACKEND RUBRIC_TYPESAFE_MODEL RUBRIC_TYPESAFE_BASE_URL RUBRIC_TYPESAFE_TIMEOUT
+    RUBRIC_JUDGE_BACKEND RUBRIC_DECISION_MODEL RUBRIC_TYPESAFE_BASE_URL RUBRIC_TYPESAFE_TIMEOUT
     RUBRIC_CASCADE_CONFIDENCE RUBRIC_CASCADE_NOUL_BAND RUBRIC_TYPESAFE_SENTENCE_LIMIT TYPESAFE_API_KEY
   ].freeze
 
@@ -13,7 +13,7 @@ class TestSystemOneConfig < Minitest::Test
 
     assert_equal :chat, config.judge_backend
     assert_nil config.typesafe_api_key
-    assert_equal "jev-latest", config.typesafe_model
+    assert_equal "jev-latest", config.decision_model
     assert_equal "https://api.typesafe.ai/v1", config.typesafe_base_url
     assert_in_delta 10.0, config.typesafe_timeout
     assert_in_delta 0.70, config.cascade_confidence
@@ -27,7 +27,7 @@ class TestSystemOneConfig < Minitest::Test
     with_env(
       "RUBRIC_JUDGE_BACKEND" => "cascade",
       "TYPESAFE_API_KEY" => "key",
-      "RUBRIC_TYPESAFE_MODEL" => "jev-1.13.0",
+      "RUBRIC_DECISION_MODEL" => "jev-1.13.0",
       "RUBRIC_TYPESAFE_BASE_URL" => "http://localhost:9292/v1",
       "RUBRIC_TYPESAFE_TIMEOUT" => "2.5",
       "RUBRIC_CASCADE_CONFIDENCE" => "0.8",
@@ -38,7 +38,7 @@ class TestSystemOneConfig < Minitest::Test
 
       assert_equal :cascade, config.judge_backend
       assert_equal "key", config.typesafe_api_key
-      assert_equal "jev-1.13.0", config.typesafe_model
+      assert_equal "jev-1.13.0", config.decision_model
       assert_equal "http://localhost:9292/v1", config.typesafe_base_url
       assert_in_delta 2.5, config.typesafe_timeout
       assert_in_delta 0.8, config.cascade_confidence
@@ -75,7 +75,7 @@ class TestSystemOneConfig < Minitest::Test
   def test_rejects_invalid_typesafe_settings
     invalid = {
       judge_backend: :unknown,
-      typesafe_model: "",
+      decision_model: "",
       typesafe_base_url: "file:///tmp/api",
       typesafe_timeout: 0,
       cascade_confidence: 1.1,
@@ -91,9 +91,9 @@ class TestSystemOneConfig < Minitest::Test
     end
   end
 
-  def test_rejects_non_string_typesafe_model
+  def test_rejects_non_string_decision_model
     [123, { name: "jev-latest" }].each do |model|
-      config = RubricLLM::Config.new(typesafe_model: model)
+      config = RubricLLM::Config.new(decision_model: model)
 
       error = assert_raises(RubricLLM::ConfigurationError) { config.validate! }
       assert_match(/non-empty string/, error.message)
@@ -102,11 +102,13 @@ class TestSystemOneConfig < Minitest::Test
 
   def test_to_h_preserves_secret_and_callable_for_configuration_copies
     policy = ->(_response) { true }
-    config = RubricLLM::Config.new(typesafe_api_key: "top-secret", cascade_policy: policy)
+    config = RubricLLM::Config.new(typesafe_api_key: "top-secret", decision_model: "jev-1.13.0", cascade_policy: policy)
     copy = RubricLLM::Config.new(**config.to_h)
 
     assert_equal "top-secret", config.to_h[:typesafe_api_key]
     assert_equal "top-secret", copy.typesafe_api_key
+    assert_equal "jev-1.13.0", copy.decision_model
+    assert_equal "jev-1.13.0", config.to_h[:decision_model]
     assert_same policy, copy.cascade_policy
     refute_includes config.inspect, "top-secret"
     assert_includes config.inspect, "[REDACTED]"
