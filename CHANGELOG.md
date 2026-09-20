@@ -5,6 +5,28 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [Unreleased]
+
+### Added
+
+- Add TypeSafe System One as a typed judge backend for all six judge metrics, with preserved probability distributions, usage, latency, and raw responses
+- Add an auditable cascade backend with injectable per-response policy, uncertainty/error fallback to chat, and per-metric escalation statistics in report summaries and CSV/JSON exports
+- Add an offline-testable three-backend calibration harness and TypeSafe judge guide
+- Support all judge backends in Minitest assertions and RSpec matchers, including chat fallback for custom metrics
+- Preserve custom instructions and complete source context in TypeSafe metric questions
+- Report token usage by provider and model, including calls made by custom metrics; exclude skipped evaluations from fallback rates
+- Honor TypeSafe retry headers, apply configured timeouts to request writes, and accept structured Noul criteria
+- Support expected pass/fail judgments and per-metric score thresholds in the calibration example
+
+### Changed
+
+- Name the decision model setting `decision_model` and its environment variable `RUBRIC_DECISION_MODEL`
+- Include typed judge evidence and cascade fallback reasons in Minitest and RSpec failure messages without dumping raw responses
+- Escalate conflicting high correctness and contradiction judgments under the default cascade policy without changing direct System One scores
+- Batch context precision by the existing item limit with global answer IDs, per-batch state, and complete score/usage aggregation
+- Explain HTTP 413 size failures and document that item batching does not bound request tokens or shared state size
+- Record provider-reported chat token usage in metric details so calibration totals include both System One and cascade fallback calls; unavailable usage remains unknown
+
 ## [0.6.0] - 2026-09-18
 
 ### Changed

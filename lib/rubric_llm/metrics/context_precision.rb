@@ -3,6 +3,7 @@
 module RubricLLM
   module Metrics
     class ContextPrecision < Base
+      INSTRUCTION = "Is `context[%<index>d]` useful for answering `question`?"
       SYSTEM_PROMPT = <<~PROMPT
         You are an evaluation judge. Assess whether the retrieved contexts are relevant to the question.
         Context precision measures if the retrieved documents are useful for answering the question.
@@ -15,7 +16,11 @@ module RubricLLM
         }
       PROMPT
 
-      def call(question:, context: [], **)
+      def call(**sample)
+        evaluate_for_backend(sample)
+      end
+
+      def call_chat(question:, context: [], **)
         context_chunks = Base.normalize_context(context)
         return { score: nil, details: { error: "No context provided" } } if context_chunks.empty?
 
@@ -27,21 +32,35 @@ module RubricLLM
 
           Evaluate how relevant each context is to the question.
         PROMPT
-
         result = judge_eval(system_prompt: SYSTEM_PROMPT, user_prompt:)
-        normalize(result)
+        {
+          score: Float(result["score"]),
+          details: chat_details(context_scores: result["context_scores"], reasoning: result["reasoning"])
+        }
+      end
+
+      def call_system_one(question:, context: [], **)
+        context_chunks = Base.normalize_context(context)
+        return { score: nil, details: { error: "No context provided" } } if context_chunks.empty?
+
+        responses = context_responses(question, context_chunks)
+        probabilities = responses.flat_map { |response| response.answers.values.map(&:probability) }
+        details = responses.one? ? system_one_details(responses.first) : combined_system_one_details(responses)
+        details = details.merge(probabilities:)
+        { score: probabilities.sum / probabilities.length.to_f, details: }
       end
 
       private
 
-      def normalize(result)
-        {
-          score: Float(result["score"]),
-          details: {
-            context_scores: result["context_scores"],
-            reasoning: result["reasoning"]
-          }
-        }
+      def context_responses(question, contexts)
+        offset = 0
+        contexts.each_slice(judge.config.typesafe_sentence_limit).map do |batch|
+          questions = batch.each_index.map do |index|
+            SystemOne::Question.noul("context_#{offset + index}", instructions: format(INSTRUCTION, index:))
+          end
+          offset += batch.length
+          system_one_eval(state: { question:, context: batch }, questions:)
+        end
       end
     end
   end

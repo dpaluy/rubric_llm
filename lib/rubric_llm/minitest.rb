@@ -1,6 +1,7 @@
 # frozen_string_literal: true
 
 require "rubric_llm"
+require_relative "failure_details"
 
 module RubricLLM
   module Assertions
@@ -45,21 +46,13 @@ module RubricLLM
     end
 
     def evaluate_metric(metric_class, config:, **)
-      judge = Judge.new(config:)
+      judge = Evaluator.build_judge(config:)
       metric = metric_class.new(judge:)
       metric.call(**)
     end
 
     def failure_details(result)
-      details = result[:details]
-      return "" unless details.is_a?(Hash)
-
-      if details[:claims]
-        unsupported = details[:claims]&.select { |c| c.is_a?(Hash) && c["supported"] == false }
-        return " Claims not supported: #{unsupported.map { |c| c["claim"] }}" if unsupported&.any?
-      end
-
-      details[:reasoning] ? " #{details[:reasoning]}" : ""
+      FailureDetails.format(result[:details])
     end
   end
 end
