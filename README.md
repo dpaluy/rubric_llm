@@ -8,14 +8,14 @@ Lightweight LLM evaluation framework for Ruby, inspired by [DeepEval](https://gi
 
 Provider-agnostic evaluation with pluggable metrics, statistical A/B comparison, and test framework integration: no Rails, no ActiveRecord, no UI. Works anywhere Ruby runs.
 
-RubricLLM `0.6.0` supports RubyLLM `~> 2.0` and Ruby 3.4 or later. Applications that use RubyLLM 1.x should stay on RubricLLM `0.5.x`.
+RubricLLM `0.7.0` supports RubyLLM `~> 2.0` and Ruby 3.4 or later. Applications that use RubyLLM 1.x should stay on RubricLLM `0.5.x`.
 
 ## Installation
 
 Update both gem constraints together:
 
 ```ruby
-gem "rubric_llm", "~> 0.6.0"
+gem "rubric_llm", "~> 0.7.0"
 gem "ruby_llm", "~> 2.0"
 ```
 
@@ -30,7 +30,7 @@ If the application still has a RubyLLM 1.x constraint, update both constraints b
 Or install directly:
 
 ```bash
-gem install rubric_llm --version 0.6.0
+gem install rubric_llm --version 0.7.0
 ```
 
 ## Quick Start
@@ -92,6 +92,28 @@ end
 
 Structured output support depends on the selected provider and model. RubricLLM sends its schema when RubyLLM reports structured output support. Otherwise it requests JSON text and validates the response object and score locally. Check the target provider's support before relying on a schema or a specific protocol. See RubyLLM's [2.0 upgrade guide](https://rubyllm.com/next/upgrading/), [request control guide](https://rubyllm.com/next/chat-request-control/), and [structured output support](https://rubyllm.com/next/structured-output/).
 
+### Judge Thinking Effort
+
+Set `thinking_effort` when using a reasoning model to control the trade-off between judge quality, latency, and cost:
+
+```ruby
+RubricLLM.configure do |c|
+  c.judge_model = "gpt-6-astra"
+  c.judge_provider = :openai
+  c.temperature = nil
+  c.thinking_effort = :high
+end
+
+# Or configure an individual evaluation:
+config = RubricLLM::Config.new(judge_model: "gpt-6-astra", temperature: nil, thinking_effort: "high")
+```
+
+RubricLLM passes the value to RubyLLM's [`with_thinking(effort: ...)`](https://rubyllm.com/thinking/). Strings and symbols are accepted. Supported values depend on the model and provider; RubricLLM does not translate values or silently ignore unsupported settings. Request errors are reported as judge errors.
+
+The default is `nil`: RubricLLM does not call `with_thinking`, so existing RubyLLM and provider behavior is unchanged. This does **not** disable reasoning. An omitted setting reads `RUBRIC_THINKING_EFFORT`; an explicit `thinking_effort: nil` ignores that environment variable. Use `:none` only when the selected model supports it.
+
+Higher effort does not guarantee better scores. Compare results on your evaluation dataset. For providers that count reasoning tokens toward the output limit, increase `max_tokens` if the default 4,096 tokens leaves too little room for the JSON response.
+
 ### Environment Variables
 
 All config fields can be set via environment variables:
@@ -101,6 +123,7 @@ All config fields can be set via environment variables:
 | `RUBRIC_JUDGE_MODEL` | `gpt-4o` | Judge LLM model name |
 | `RUBRIC_JUDGE_PROVIDER` | `openai` | RubyLLM provider |
 | `RUBRIC_TEMPERATURE` | `0.0` | Judge temperature |
+| `RUBRIC_THINKING_EFFORT` | unset | Model-specific reasoning effort, such as `high` |
 | `RUBRIC_MAX_TOKENS` | `4096` | Max response tokens |
 | `RUBRIC_MAX_RETRIES` | `2` | Max retries on transient failures |
 | `RUBRIC_RETRY_BASE_DELAY` | `1.0` | Base delay (seconds) for exponential backoff |
@@ -403,7 +426,7 @@ Deep dives live in the [project wiki](https://github.com/dpaluy/rubric_llm/wiki)
 ## Requirements
 
 - Ruby >= 3.4
-- [ruby_llm](https://github.com/crmne/ruby_llm) ~> 2.0 for RubricLLM 0.6.0
+- [ruby_llm](https://github.com/crmne/ruby_llm) ~> 2.0 for RubricLLM 0.7.0
 - An API key for your chosen LLM provider (set via RubyLLM configuration)
 
 ## Contributing

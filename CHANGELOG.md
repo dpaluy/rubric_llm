@@ -5,6 +5,12 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [0.7.0] - 2026-09-22
+
+### Added
+
+- Optional `thinking_effort` configuration and `RUBRIC_THINKING_EFFORT` environment variable for judge reasoning models, passed to RubyLLM's `with_thinking(effort: ...)`. The default leaves thinking controls unchanged; explicit `nil` ignores the environment variable
+
 ## [0.6.0] - 2026-09-18
 
 ### Changed
