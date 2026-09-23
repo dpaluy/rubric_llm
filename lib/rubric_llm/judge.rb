@@ -52,6 +52,7 @@ module RubricLLM
         chat = RubyLLM.chat(model: config.judge_model, provider: config.judge_provider)
         chat.with_temperature(config.temperature)
         chat.with_max_output_tokens(config.max_tokens)
+        chat.with_thinking(effort: config.thinking_effort) unless config.thinking_effort.nil?
         apply_response_schema(chat)
 
         full_system_prompt = build_system_prompt(system_prompt)

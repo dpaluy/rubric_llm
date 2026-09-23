@@ -3,14 +3,16 @@
 module RubricLLM
   class Config
     attr_accessor :judge_model, :judge_provider, :temperature, :max_tokens, :custom_prompt,
-                  :max_retries, :retry_base_delay, :concurrency
+                  :max_retries, :retry_base_delay, :concurrency, :thinking_effort
 
     def initialize(judge_model: nil, judge_provider: nil, # rubocop:disable Metrics/ParameterLists
                    temperature: Float(ENV.fetch("RUBRIC_TEMPERATURE", "0.0")), max_tokens: nil,
-                   custom_prompt: nil, max_retries: nil, retry_base_delay: nil, concurrency: nil, validate: false)
+                   custom_prompt: nil, max_retries: nil, retry_base_delay: nil, concurrency: nil, validate: false,
+                   thinking_effort: ENV.fetch("RUBRIC_THINKING_EFFORT", nil))
       @judge_model = judge_model || ENV.fetch("RUBRIC_JUDGE_MODEL", "gpt-4o")
       @judge_provider = (judge_provider || ENV.fetch("RUBRIC_JUDGE_PROVIDER", "openai")).to_sym
       @temperature = temperature
+      @thinking_effort = thinking_effort
       @max_tokens = max_tokens || Integer(ENV.fetch("RUBRIC_MAX_TOKENS", "4096"))
       @custom_prompt = custom_prompt
       @max_retries = max_retries || Integer(ENV.fetch("RUBRIC_MAX_RETRIES", "2"))
@@ -27,6 +29,7 @@ module RubricLLM
       validate_judge_model
       validate_judge_provider
       validate_temperature
+      validate_thinking_effort
       validate_max_tokens
       validate_max_retries
       validate_retry_base_delay
@@ -39,6 +42,7 @@ module RubricLLM
         judge_model:,
         judge_provider:,
         temperature:,
+        thinking_effort:,
         max_tokens:,
         custom_prompt:,
         max_retries:,
@@ -65,6 +69,13 @@ module RubricLLM
       return if temperature.nil? || (temperature.is_a?(Numeric) && temperature.between?(0.0, 2.0))
 
       raise ConfigurationError, "temperature must be nil or between 0.0 and 2.0"
+    end
+
+    def validate_thinking_effort
+      return if thinking_effort.nil?
+      return if (thinking_effort.is_a?(String) || thinking_effort.is_a?(Symbol)) && !thinking_effort.to_s.strip.empty?
+
+      raise ConfigurationError, "thinking_effort must be nil or a non-empty string or symbol"
     end
 
     def validate_max_tokens

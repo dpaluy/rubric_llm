@@ -8,6 +8,7 @@ class TestRubyLLMStubContract < Minitest::Test
     model
     with_instructions
     with_temperature
+    with_thinking
     with_max_output_tokens
     with_schema
   ].freeze
@@ -19,6 +20,7 @@ class TestRubyLLMStubContract < Minitest::Test
     last_schema
     last_system_prompt
     last_temperature
+    last_thinking
     last_user_prompt
     response_content
     response_content=

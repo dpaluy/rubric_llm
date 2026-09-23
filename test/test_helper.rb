@@ -31,7 +31,7 @@ module RubyLLMStub
   class FakeChat
     attr_accessor :response_content
     attr_reader :last_system_prompt, :last_user_prompt, :last_attachments, :last_schema,
-                :last_temperature, :last_max_output_tokens, :call_count, :model
+                :last_temperature, :last_max_output_tokens, :last_thinking, :call_count, :model
 
     def initialize(response_content: '{"score": 0.9, "reasoning": "test"}', fail_times: 0, error_class: RuntimeError,
                    model: nil)
@@ -77,6 +77,12 @@ module RubyLLMStub
 
     def with_max_output_tokens(max_output_tokens)
       @last_max_output_tokens = max_output_tokens
+      self
+    end
+
+    # Match RubyLLM's public method signature for the stub contract check.
+    def with_thinking(enabled = true, **options) # rubocop:disable Style/OptionalBooleanParameter
+      @last_thinking = { enabled:, **options }
       self
     end
 
