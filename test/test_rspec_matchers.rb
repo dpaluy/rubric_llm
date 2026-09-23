@@ -21,14 +21,16 @@ class TestRSpecMatchers < Minitest::Test
   # --- FaithfulnessMatcher ---
 
   def test_faithfulness_matcher_passes
-    stub_judge_response('{"score": 0.9, "claims": [], "reasoning": "faithful"}')
+    stub_judge_response('{"score": 0.9, "claims": [{"claim": "Paris is the capital", "supported": true}], "reasoning": "faithful"}')
     matcher = RubricLLM::RSpecMatchers::FaithfulnessMatcher.new(["Paris is the capital of France."])
 
     assert matcher.matches?("Paris is the capital.")
   end
 
   def test_faithfulness_matcher_fails_below_threshold
-    stub_judge_response('{"score": 0.5, "claims": [], "reasoning": "unfaithful"}')
+    stub_judge_response('{"score": 0.5, "claims": ' \
+                        '[{"claim": "Paris is the capital", "supported": true}, ' \
+                        '{"claim": "Tokyo is the capital", "supported": false}], "reasoning": "unfaithful"}')
     matcher = RubricLLM::RSpecMatchers::FaithfulnessMatcher.new(["Paris is the capital."])
 
     refute matcher.matches?("Tokyo is the capital.")
@@ -37,7 +39,8 @@ class TestRSpecMatchers < Minitest::Test
   end
 
   def test_faithfulness_matcher_custom_threshold
-    stub_judge_response('{"score": 0.85, "claims": [], "reasoning": "ok"}')
+    stub_judge_response('{"score": 0.85, "claims": ' \
+                        '[{"claim": "answer", "supported": true}, {"claim": "other", "supported": false}], "reasoning": "ok"}')
     matcher = RubricLLM::RSpecMatchers::FaithfulnessMatcher.new(["context"]).with_threshold(0.9)
 
     refute matcher.matches?("answer")
@@ -53,7 +56,7 @@ class TestRSpecMatchers < Minitest::Test
   end
 
   def test_faithfulness_negated_message
-    stub_judge_response('{"score": 0.95, "claims": [], "reasoning": "good"}')
+    stub_judge_response('{"score": 0.95, "claims": [{"claim": "answer", "supported": true}], "reasoning": "good"}')
     matcher = RubricLLM::RSpecMatchers::FaithfulnessMatcher.new(["context"])
     matcher.matches?("answer")
 
@@ -113,14 +116,14 @@ class TestRSpecMatchers < Minitest::Test
   # --- HallucinationMatcher ---
 
   def test_hallucination_matcher_detects_hallucination
-    stub_judge_response('{"score": 0.3, "claims": [], "reasoning": "not supported"}')
+    stub_judge_response('{"score": 0.3, "claims": [{"claim": "Tokyo is the capital", "supported": false}], "reasoning": "not supported"}')
     matcher = RubricLLM::RSpecMatchers::HallucinationMatcher.new(["Paris is the capital."])
 
     assert matcher.matches?("Tokyo is the capital.")
   end
 
   def test_hallucination_matcher_no_hallucination
-    stub_judge_response('{"score": 0.95, "claims": [], "reasoning": "faithful"}')
+    stub_judge_response('{"score": 0.95, "claims": [{"claim": "Paris is the capital", "supported": true}], "reasoning": "faithful"}')
     matcher = RubricLLM::RSpecMatchers::HallucinationMatcher.new(["Paris is the capital."])
 
     refute matcher.matches?("Paris is the capital.")
@@ -136,7 +139,7 @@ class TestRSpecMatchers < Minitest::Test
   end
 
   def test_hallucination_negated_message
-    stub_judge_response('{"score": 0.3, "claims": [], "reasoning": "not supported"}')
+    stub_judge_response('{"score": 0.3, "claims": [{"claim": "answer", "supported": false}], "reasoning": "not supported"}')
     matcher = RubricLLM::RSpecMatchers::HallucinationMatcher.new(["context"])
     matcher.matches?("answer")
 

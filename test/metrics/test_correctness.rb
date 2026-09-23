@@ -13,6 +13,13 @@ class TestCorrectness < Minitest::Test
     assert_in_delta 0.95, result[:score]
   end
 
+  def test_rejects_missing_reasoning
+    stub_judge_response('{"score": 0.95}')
+    metric = RubricLLM::Metrics::Correctness.new(judge: RubricLLM::Judge.new(config: RubricLLM.config))
+
+    assert_raises(RubricLLM::JudgeError) { metric.call(question: "q", answer: "a", ground_truth: "a") }
+  end
+
   def test_nil_without_ground_truth
     metric = RubricLLM::Metrics::Correctness.new(judge: RubricLLM::Judge.new(config: RubricLLM.config))
     result = metric.call(question: "q", answer: "a")

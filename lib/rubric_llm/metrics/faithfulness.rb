@@ -6,6 +6,8 @@ module RubricLLM
       SYSTEM_PROMPT = <<~PROMPT
         You are an evaluation judge. Assess whether the answer is faithful to the provided context.
         A faithful answer only contains information that is supported by the context.
+        List every factual claim in the answer. Mark a claim supported only if the context supports it.
+        The score is the fraction of supported claims. If there are no factual claims, do not invent claims.
 
         Respond with JSON only:
         {
@@ -36,11 +38,12 @@ module RubricLLM
       private
 
       def normalize(result)
+        claims = checked_items(result, "claims", label: "claims", value_key: "supported", text_key: "claim")
         {
-          score: Float(result["score"]),
+          score: fraction(claims, "supported"),
           details: {
-            claims: result["claims"],
-            reasoning: result["reasoning"]
+            claims:,
+            reasoning: reasoning_for(result)
           }
         }
       end

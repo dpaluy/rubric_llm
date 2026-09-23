@@ -165,14 +165,14 @@ RubyLLM classifies OpenAI's HTTP 429 `insufficient_quota` response as a rate-lim
 
 ### LLM-as-Judge Metrics
 
-These metrics use a judge LLM to evaluate quality. Each sends a structured prompt and parses a JSON response with a 0.0–1.0 score.
+These metrics use a judge LLM to evaluate quality. Each returns a 0.0–1.0 score. Faithfulness counts supported answer claims, context precision counts relevant non-empty chunks, and context recall counts covered reference facts. These three scores are calculated from the judge's item-level decisions, not its suggested score. An empty or malformed item list (including an answer with no factual claims) is an evaluation error, not a quality score. Correctness, relevance, and factual accuracy use judge scores with metric-specific scoring criteria. The judge still decides what counts as a claim, fact, or relevant chunk, so scores are not deterministic across models.
 
 | Metric | Question it answers | Requires |
 |--------|-------------------|----------|
 | **Correctness** | Does the answer match the known correct answer? | `ground_truth` |
 | **Relevance** | Does the answer address what was asked? | `question` |
 | **Context Precision** | Are the retrieved context chunks actually relevant? | `question`, `context` |
-| **Factual Accuracy** | Are there factual discrepancies between candidate and reference? | `ground_truth` |
+| **Factual Accuracy** | Does the candidate contradict the reference (not omit it)? | `ground_truth` |
 | **Context Recall** | Do the contexts cover the information in the ground truth? | `context`, `ground_truth` |
 | **Faithfulness** | Is every claim in the answer supported by the context? | `context` |
 

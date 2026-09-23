@@ -5,7 +5,11 @@ module RubricLLM
     class Correctness < Base
       SYSTEM_PROMPT = <<~PROMPT
         You are an evaluation judge. Assess whether the answer matches the ground truth.
-        Consider semantic equivalence, not just exact string matching.
+        Consider semantic equivalence, not just exact string matching. Score the answer against
+        the question and reference: 1.0 if it fully answers with no material errors, 0.5 if it
+        is partly correct but misses required information or includes a material error, and 0.0
+        if it is wrong or does not answer. Use intermediate values for partial cases and explain
+        what is correct, missing, or wrong. Do not require irrelevant reference details.
 
         Respond with JSON only:
         {
@@ -36,7 +40,7 @@ module RubricLLM
       def normalize(result)
         {
           score: Float(result["score"]),
-          details: { reasoning: result["reasoning"] }
+          details: { reasoning: reasoning_for(result) }
         }
       end
     end

@@ -5,7 +5,10 @@ module RubricLLM
     class ContextRecall < Base
       SYSTEM_PROMPT = <<~PROMPT
         You are an evaluation judge. Assess whether the provided contexts cover the information in the ground truth.
-        Context recall measures if the retrieved documents contain enough information to construct the ground truth answer.
+        Context recall is the fraction of facts in the ground truth supported by the contexts.
+        List every distinct factual claim in the ground truth. Mark it covered only if a numbered
+        context supports it, and use that context's 1-based index as source_context.
+        Use null for source_context when a fact is not covered.
 
         Respond with JSON only:
         {
@@ -31,18 +34,22 @@ module RubricLLM
         PROMPT
 
         result = judge_eval(system_prompt: SYSTEM_PROMPT, user_prompt:)
-        normalize(result)
+        normalize(result, context_chunks.size)
       end
 
       private
 
-      def normalize(result)
+      def normalize(result, count)
+        covered_facts = checked_items(result, "covered_facts", label: "covered facts", value_key: "covered", text_key: "fact")
+        valid_sources = covered_facts.all? do |item|
+          source = item["source_context"]
+          item["covered"] ? source.is_a?(Integer) && (1..count).cover?(source) : source.nil?
+        end
+        raise JudgeError, "Judge response has invalid source contexts" unless valid_sources
+
         {
-          score: Float(result["score"]),
-          details: {
-            covered_facts: result["covered_facts"],
-            reasoning: result["reasoning"]
-          }
+          score: fraction(covered_facts, "covered"),
+          details: { covered_facts:, reasoning: reasoning_for(result) }
         }
       end
     end

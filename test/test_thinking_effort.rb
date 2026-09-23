@@ -77,7 +77,7 @@ class TestThinkingEffort < Minitest::Test
   end
 
   def test_evaluation_preserves_effort_with_custom_prompt
-    chat = RubyLLMStub::FakeChat.new(response_content: '{"score": 0.9}')
+    chat = RubyLLMStub::FakeChat.new(response_content: '{"score": 0.9, "reasoning": "relevant"}')
     RubyLLMStub.fake_chat = chat
 
     with_thinking_effort_env("high") do

@@ -8,7 +8,7 @@ class TestAssertions < Minitest::Test
   include RubricLLM::Assertions
 
   def test_assert_faithful_passes
-    stub_judge_response('{"score": 0.9, "claims": [], "reasoning": "supported"}')
+    stub_judge_response('{"score": 0.9, "claims": [{"claim": "Paris is the capital", "supported": true}], "reasoning": "supported"}')
 
     assert_faithful "Paris is the capital.", ["Paris is the capital of France."],
                     question: "What is the capital of France?"
@@ -35,7 +35,7 @@ class TestAssertions < Minitest::Test
   end
 
   def test_refute_hallucination_passes
-    stub_judge_response('{"score": 0.9, "claims": [], "reasoning": "no hallucination"}')
+    stub_judge_response('{"score": 0.9, "claims": [{"claim": "Paris", "supported": true}], "reasoning": "no hallucination"}')
 
     refute_hallucination "Paris", ["Paris is the capital of France."]
   end
