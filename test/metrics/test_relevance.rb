@@ -13,6 +13,13 @@ class TestRelevance < Minitest::Test
     assert_in_delta 0.85, result[:score]
   end
 
+  def test_rejects_missing_reasoning
+    stub_judge_response('{"score": 0.85}')
+    metric = RubricLLM::Metrics::Relevance.new(judge: RubricLLM::Judge.new(config: RubricLLM.config))
+
+    assert_raises(RubricLLM::JudgeError) { metric.call(question: "q", answer: "a") }
+  end
+
   def test_raises_for_score_above_one
     stub_judge_response('{"score": 1.5, "reasoning": "over"}')
     metric = RubricLLM::Metrics::Relevance.new(judge: RubricLLM::Judge.new(config: no_retry_config))

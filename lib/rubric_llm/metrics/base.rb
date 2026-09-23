@@ -35,6 +35,29 @@ module RubricLLM
       def judge_eval(system_prompt:, user_prompt:)
         judge.call(system_prompt:, user_prompt:)
       end
+
+      def checked_items(result, key, label:, value_key:, text_key:, count: nil)
+        items = result[key]
+        valid = items.is_a?(Array) && items.any? && (count.nil? || items.size == count)
+        valid &&= items.all? do |item|
+          item.is_a?(Hash) && item[text_key].is_a?(String) && !item[text_key].strip.empty? &&
+            [true, false].include?(item[value_key])
+        end
+        raise JudgeError, "Judge response has invalid #{label}" unless valid
+
+        items
+      end
+
+      def fraction(items, key)
+        items.count { |item| item[key] }.to_f / items.size
+      end
+
+      def reasoning_for(result)
+        reasoning = result["reasoning"]
+        raise JudgeError, "Judge response missing reasoning" unless reasoning.is_a?(String) && !reasoning.strip.empty?
+
+        reasoning
+      end
     end
   end
 end

@@ -5,6 +5,14 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [0.8.0] - 2026-09-22
+
+### Changed
+
+- Calculate faithfulness, context precision, and context recall scores from the judge's item-level decisions instead of its suggested score
+- Define scoring criteria for correctness, relevance, and factual accuracy, with factual accuracy measuring contradictions against the reference rather than missing facts
+- Reject missing or malformed metric details, including missing reasoning, empty claim or fact lists, invalid context indices, and factual accuracy scores that conflict with their discrepancy lists. Context indices must be 1-based integers. Evaluation returns `nil` with an error for these responses; direct metric calls raise `JudgeError`
+
 ## [0.7.0] - 2026-09-22
 
 ### Added

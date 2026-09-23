@@ -5,7 +5,12 @@ module RubricLLM
     class FactualAccuracy < Base
       SYSTEM_PROMPT = <<~PROMPT
         You are an evaluation judge. Compare the factual claims in the candidate answer against the reference answer.
-        Identify any discrepancies where the candidate states something different from the reference.
+        Identify contradictions in candidate factual claims against the reference. Do not penalize
+        missing reference facts, which correctness measures. Score 1.0 if there are no contradictions,
+        0.5 if minor factual contradictions affect part of the answer, and 0.0 if major contradictions
+        undermine the answer. Use intermediate values for partial cases. Explain the score and list
+        each contradiction with severity minor or major. If the reference does not establish whether
+        a claim is true, do not call it a contradiction.
 
         Respond with JSON only:
         {
@@ -33,13 +38,24 @@ module RubricLLM
       private
 
       def normalize(result)
+        discrepancies = result["discrepancies"]
+        unless discrepancies.is_a?(Array) && discrepancies.all? { |item| valid_discrepancy?(item) }
+          raise JudgeError, "Judge response has invalid discrepancies"
+        end
+
+        score = Float(result["score"])
+        raise JudgeError, "Judge response score conflicts with no discrepancies" if discrepancies.empty? && score < 1.0
+        raise JudgeError, "Judge response score conflicts with discrepancies" if discrepancies.any? && score >= 1.0
+
         {
-          score: Float(result["score"]),
-          details: {
-            discrepancies: result["discrepancies"],
-            reasoning: result["reasoning"]
-          }
+          score:,
+          details: { discrepancies:, reasoning: reasoning_for(result) }
         }
+      end
+
+      def valid_discrepancy?(item)
+        item.is_a?(Hash) && %w[claim reference].all? { |key| item[key].is_a?(String) && !item[key].strip.empty? } &&
+          %w[minor major].include?(item["severity"])
       end
     end
   end

@@ -27,6 +27,21 @@ class TestFactualAccuracy < Minitest::Test
     assert_empty result[:details][:discrepancies]
   end
 
+  def test_rejects_score_that_conflicts_with_discrepancies
+    stub_judge_response('{"score": 1.0, "discrepancies": ' \
+                        '[{"claim": "a", "reference": "b", "severity": "major"}], "reasoning": "contradiction"}')
+    metric = RubricLLM::Metrics::FactualAccuracy.new(judge: RubricLLM::Judge.new(config: RubricLLM.config))
+
+    assert_raises(RubricLLM::JudgeError) { metric.call(answer: "a", ground_truth: "b") }
+  end
+
+  def test_rejects_missing_discrepancies
+    stub_judge_response('{"score": 0.8, "reasoning": "contradiction"}')
+    metric = RubricLLM::Metrics::FactualAccuracy.new(judge: RubricLLM::Judge.new(config: RubricLLM.config))
+
+    assert_raises(RubricLLM::JudgeError) { metric.call(answer: "a", ground_truth: "b") }
+  end
+
   def test_nil_without_ground_truth
     metric = RubricLLM::Metrics::FactualAccuracy.new(judge: RubricLLM::Judge.new(config: RubricLLM.config))
     result = metric.call(answer: "some answer")

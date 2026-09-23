@@ -73,7 +73,7 @@ class EvaluationContract < RealClientContract
         completed << "second"
         release << true
       end
-      response_fixture(content: JSON.generate(score: first ? 0.9 : 0.4))
+      response_fixture(content: JSON.generate(score: first ? 0.9 : 0.4, reasoning: "offline"))
     end
     dataset = %w[first second].map { |question| { question:, answer: "Answer" } }
     report = RubricLLM.evaluate_batch(dataset, config: configuration, concurrency: 2, metrics: [RubricLLM::Metrics::Relevance])
