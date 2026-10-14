@@ -3,6 +3,19 @@
 require_relative "helper"
 
 class IsolationContract < RealClientContract
+  def test_upstream_judge_and_evaluation_coexist_with_rubric_judge
+    upstream_judge = RubyLLM::Judge
+    upstream_evaluation = RubyLLM::Evaluation
+    stub_response
+
+    refute_same upstream_judge, RubricLLM::Judge
+    refute_same upstream_evaluation, RubricLLM::Evaluator
+    assert_equal "RubyLLM::Judge", upstream_judge.name
+    assert_equal "RubyLLM::Evaluation", upstream_evaluation.name
+    assert_equal "RubricLLM::Judge", RubricLLM::Judge.name
+    assert_in_delta(0.9, judge_call.fetch("score"))
+  end
+
   def test_unmatched_requests_fail_without_network
     error = assert_raises(RubricLLM::JudgeError) { judge_call(max_retries: 2) }
 

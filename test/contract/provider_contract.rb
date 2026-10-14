@@ -19,6 +19,30 @@ class ProviderContract < RealClientContract
     assert_equal 1, @connections.size
   end
 
+  def test_shared_connection_keeps_judge_requests_and_credentials_independent
+    stub_response do |env|
+      assert_equal "Bearer offline-openai", env.request_headers["Authorization"]
+    end
+    first = judge_call(custom_prompt: "First judge")
+
+    RubyLLM.config.openai_api_key = "offline-second-key"
+
+    stub_response(content: '{"score":0.75,"reasoning":"second"}') do |env|
+      assert_equal "Bearer offline-second-key", env.request_headers["Authorization"]
+    end
+    second = judge_call(custom_prompt: "Second judge")
+
+    assert_in_delta(0.9, first.fetch("score"))
+    assert_in_delta(0.75, second.fetch("score"))
+    assert_equal 1, @connections.size
+    assert_equal 2, @requests.size
+    assert_equal "Judge the answer\n\nAdditional instructions:\nFirst judge", @requests.fetch(0)["instructions"]
+    assert_equal "Judge the answer\n\nAdditional instructions:\nSecond judge", @requests.fetch(1)["instructions"]
+    @requests.each do |payload|
+      assert_equal [{ "role" => "user", "content" => "Test answer" }], payload["input"]
+    end
+  end
+
   def test_openai_responses_omits_explicit_nil_temperature
     stub_response
     judge_call(temperature: nil)

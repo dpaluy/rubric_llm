@@ -21,7 +21,7 @@ class RetryContract < RealClientContract
 
       assert_in_delta(0.9, judge_call(max_retries: 2).fetch("score"))
       assert_equal 3, @requests.size
-      assert_equal 2, @connections.size
+      assert_equal 1, @connections.size
     end
 
     define_method("test_http_#{status}_exhausts_both_retry_budgets") do
@@ -31,7 +31,7 @@ class RetryContract < RealClientContract
 
       assert_includes error.message, "temporary fixture failure"
       assert_equal 6, @requests.size
-      assert_equal 3, @connections.size
+      assert_equal 1, @connections.size
     end
   end
 
@@ -53,7 +53,7 @@ class RetryContract < RealClientContract
     end
   end
 
-  # The RC classifies OpenAI's HTTP 429 quota response as RateLimitError.
+  # RubyLLM 2.1 still classifies OpenAI's HTTP 429 quota response as RateLimitError.
   # Preserve this existing retry behavior, including the bounded attempt count.
   def test_429_insufficient_quota_retains_upstream_retry_classification
     RubyLLM.config.max_retries = 1
@@ -67,7 +67,7 @@ class RetryContract < RealClientContract
 
     assert_includes error.message, "You exceeded your current quota"
     assert_equal 6, @requests.size
-    assert_equal 3, @connections.size
+    assert_equal 1, @connections.size
   end
 
   [Faraday::TimeoutError, Faraday::ConnectionFailed].each do |error_class|
