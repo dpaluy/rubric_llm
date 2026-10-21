@@ -116,6 +116,37 @@ The default is `nil`: RubricLLM does not call `with_thinking`, so existing RubyL
 
 Higher effort does not guarantee better scores. Compare results on your evaluation dataset. For providers that count reasoning tokens toward the output limit, increase `max_tokens` if the default 4,096 tokens leaves too little room for the JSON response.
 
+### Judgment Models (TypeSafe Jev)
+
+Judgment models such as TypeSafe's Jev (`jev-latest`, `jev-preview`) do not chat. They answer typed questions through RubyLLM's [`RubyLLM.judge`](https://rubyllm.com/). RubricLLM detects them from the RubyLLM model registry (the `judgment` capability) and uses judgment questions instead of chat prompts:
+
+```ruby
+RubyLLM.configure do |c|
+  c.typesafe_api_key = ENV["TYPESAFE_API_KEY"]
+end
+
+RubricLLM.configure do |c|
+  c.judge_provider = :typesafe
+  c.judge_model = "jev-latest"
+end
+```
+
+Local decision models served with `provider: :ollama` work the same way when the registry lists them with the `judgment` capability.
+
+All built-in metrics support judgment models:
+
+| Metric | Judgment question | Score |
+|--------|-------------------|-------|
+| `relevance`, `correctness`, `factual_accuracy` | One score against three ordered levels | Score normalized to 0.0-1.0 |
+| `faithfulness`, `context_recall` | One score against five levels, from no supported claims or covered facts to all of them | Score normalized to 0.0-1.0 |
+| `context_precision` | One yes/no probability per context chunk | Fraction of chunks with probability >= 0.5 |
+
+Judgment models do not explain their answers or list claims. Metric details contain `backend: :judgment` with the answer's `probabilities` and `confidence` (or `probability`, or per-chunk `context_scores`) instead of `reasoning`, `claims`, or `covered_facts`. The claim-based metrics estimate a share of claims instead of counting extracted claims.
+
+Judgment scores are probability-weighted positions on the levels, so they can fall between levels (for example, 3.6 of 4 levels gives 0.9). They are not on the same scale as chat scores: an answer with 9 of 10 supported claims scores 0.9 with a chat judge, but a judgment model may weight it closer to "Most claims" (0.75). Compare scores within one backend, and recalibrate assertion and CI thresholds when you switch backends.
+
+`custom_prompt` is appended to each judgment question's text instructions; structured (Hash or Array) instructions keep their shape and receive it as `additional_instructions`. `temperature`, `max_tokens`, and `thinking_effort` do not apply to judgment requests. Retries and error handling are the same as for chat judges. Custom metrics that call `judge_eval` need a chat model; with a judgment model, evaluation reports them as `nil` with an error.
+
 ### Environment Variables
 
 All config fields can be set via environment variables:
@@ -215,6 +246,27 @@ result = RubricLLM.evaluate(
 )
 result.scores[:tone_metric]  # => 0.85
 ```
+
+For judgment models, subclass `Metrics::Judgment` and declare one question. A score is normalized from its level indexes onto 0.0-1.0, worst level first; a probability scores the probability of yes:
+
+```ruby
+class ToneMetric < RubricLLM::Metrics::Judgment
+  score "How professional is the tone?", ["Rude", "Neutral", "Professional"]
+end
+
+class PolitenessMetric < RubricLLM::Metrics::Judgment
+  probability "Is the answer polite?", yes: "Courteous wording", no: "Dismissive or rude wording"
+
+  private
+
+  # Defaults to the question, answer, non-empty context, and ground truth.
+  def judgment_input(answer:, **)
+    answer
+  end
+end
+```
+
+`Metrics::Judgment` subclasses require a judgment model. Instantiating one without a declared question raises `ArgumentError`. Malformed judgment answers raise `JudgeError`, so evaluation records `nil` with an error. Failed Minitest assertions include the judgment's probabilities and confidence.
 
 ### Retrieval Metrics
 

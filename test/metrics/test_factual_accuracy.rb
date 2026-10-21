@@ -58,6 +58,16 @@ class TestFactualAccuracy < Minitest::Test
     assert_includes error.message, "empty"
   end
 
+  def test_judgment_model_scores_contradiction_levels
+    stub_judgment({ factual_accuracy: fake_score(1) })
+    metric = RubricLLM::Metrics::FactualAccuracy.new(judge: RubricLLM::Judge.new(config: RubricLLM.config))
+    result = metric.call(question: "q", answer: "Paris, 3M people", ground_truth: "Paris, 2M people")
+
+    assert_in_delta 0.5, result[:score]
+    assert_equal({ candidate_answer: "Paris, 3M people", reference_answer: "Paris, 2M people" },
+                 RubyLLMStub.fake_judge.last_call[:input])
+  end
+
   private
 
   def no_retry_config

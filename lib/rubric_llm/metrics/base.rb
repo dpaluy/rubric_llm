@@ -36,6 +36,67 @@ module RubricLLM
         judge.call(system_prompt:, user_prompt:)
       end
 
+      def judgment?
+        judge.judgment?
+      end
+
+      # Ask a judgment model typed questions and return the named answers.
+      def judgment_eval(input, questions)
+        judgment = judge.judge(input, questions:)
+        questions.keys.to_h do |name|
+          answer = judgment[name]
+          raise JudgeError, "Judgment is missing answer #{name}" if answer.nil?
+
+          [name, answer]
+        end
+      end
+
+      # Score the input with a single judgment question built from the metric's
+      # JUDGMENT_INSTRUCTIONS and ordered JUDGMENT_LEVELS.
+      def score_judgment(input, name:)
+        score_question(input, name, { type: :score, instructions: self.class::JUDGMENT_INSTRUCTIONS,
+                                      levels: self.class::JUDGMENT_LEVELS })
+      end
+
+      # Ask one score or probability question and turn its answer into a metric result.
+      # A score is normalized from its level indexes; a probability is the probability of yes.
+      def score_question(input, name, question)
+        answer = judgment_eval(input, { name => question }).fetch(name)
+        case question[:type]
+        when :score
+          { score: normalized_score(answer),
+            details: { backend: :judgment, probabilities: answer.probabilities, confidence: answer.confidence } }
+        when :probability
+          probability = probability_of(answer)
+          { score: probability, details: { backend: :judgment, probability: } }
+        else raise ArgumentError, "Unsupported judgment question type: #{question[:type].inspect}"
+        end
+      rescue NoMethodError
+        raise JudgeError, "Judgment answer #{name} is malformed"
+      end
+
+      # Map a judgment score from its level indexes onto 0.0-1.0.
+      def normalized_score(answer)
+        levels = answer.levels.size
+        raise JudgeError, "Judgment score needs at least two levels" if levels < 2
+
+        unit_interval(Float(answer.score) / (levels - 1), "score")
+      rescue ArgumentError, TypeError, NoMethodError
+        raise JudgeError, "Judgment score must be numeric with ordered levels"
+      end
+
+      def probability_of(answer)
+        unit_interval(Float(answer.probability), "probability")
+      rescue ArgumentError, TypeError, NoMethodError
+        raise JudgeError, "Judgment probability must be numeric"
+      end
+
+      def unit_interval(value, label)
+        raise JudgeError, "Judgment #{label} must be between 0.0 and 1.0" unless value.finite? && value.between?(0.0, 1.0)
+
+        value
+      end
+
       def checked_items(result, key, label:, value_key:, text_key:, count: nil)
         items = result[key]
         valid = items.is_a?(Array) && items.any? && (count.nil? || items.size == count)

@@ -17,9 +17,21 @@ module RubricLLM
         }
       PROMPT
 
+      JUDGMENT_INSTRUCTIONS = "What share of the factual claims in the answer does the context support? " \
+                              "A faithful answer only contains information supported by the context."
+      JUDGMENT_LEVELS = [
+        "No claims are supported by the context",
+        "Few claims are supported by the context",
+        "About half of the claims are supported by the context",
+        "Most claims are supported by the context",
+        "Every claim is supported by the context"
+      ].freeze
+
       def call(question:, answer:, context: [], **)
         context_chunks = Base.normalize_context(context)
         return { score: nil, details: { error: "No context provided" } } if context_chunks.empty?
+
+        return score_judgment({ context: context_chunks, question:, answer: }, name: :faithfulness) if judgment?
 
         user_prompt = <<~PROMPT
           Context: #{context_chunks.join("\n\n")}

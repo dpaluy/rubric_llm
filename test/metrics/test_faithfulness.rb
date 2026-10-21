@@ -89,6 +89,23 @@ class TestFaithfulness < Minitest::Test
     assert_nil chat.last_user_prompt
   end
 
+  def test_judgment_model_scores_supported_claim_levels
+    stub_judgment({ faithfulness: fake_score(3, levels: 5) })
+    metric = RubricLLM::Metrics::Faithfulness.new(judge: RubricLLM::Judge.new(config: RubricLLM.config))
+    result = metric.call(question: "q", answer: "a", context: [" Paris is in France. ", ""])
+
+    assert_in_delta 0.75, result[:score]
+    assert_equal ["Paris is in France."], RubyLLMStub.fake_judge.last_call[:input][:context]
+  end
+
+  def test_judgment_model_keeps_context_guard
+    stub_judgment
+    metric = RubricLLM::Metrics::Faithfulness.new(judge: RubricLLM::Judge.new(config: RubricLLM.config))
+
+    assert_nil metric.call(question: "q", answer: "a", context: [])[:score]
+    assert_empty RubyLLMStub.fake_judge.calls
+  end
+
   private
 
   def no_retry_config

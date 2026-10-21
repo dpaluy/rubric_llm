@@ -64,4 +64,13 @@ class TestContextRecall < Minitest::Test
 
     assert_nil result[:score]
   end
+
+  def test_judgment_model_scores_covered_fact_levels
+    stub_judgment({ context_recall: fake_score(4, levels: 5) })
+    metric = RubricLLM::Metrics::ContextRecall.new(judge: RubricLLM::Judge.new(config: RubricLLM.config))
+    result = metric.call(question: "q", answer: "a", context: ["Paris is the capital."], ground_truth: "Paris")
+
+    assert_in_delta 1.0, result[:score]
+    assert_equal({ contexts: ["Paris is the capital."], ground_truth: "Paris" }, RubyLLMStub.fake_judge.last_call[:input])
+  end
 end

@@ -13,6 +13,7 @@ class RealClientContract < Minitest::Test
     openai_api_key: "offline-openai", anthropic_api_key: "offline-anthropic", gemini_api_key: "offline-gemini",
     openai_api_base: "https://openai.invalid/v1", anthropic_api_base: "https://anthropic.invalid",
     gemini_api_base: "https://gemini.invalid/v1beta", openai_protocol: nil, gemini_protocol: nil,
+    typesafe_api_key: "offline-typesafe", typesafe_api_base: "https://typesafe.invalid",
     max_retries: 0, retry_interval: 0, retry_interval_randomness: 0, http_proxy: nil
   }.freeze
 
@@ -67,11 +68,13 @@ class RealClientContract < Minitest::Test
   end
 
   def fixture_models
-    [["gpt-4o", "openai"], ["claude-sonnet-4", "anthropic"], ["gemini-2.5-flash", "gemini"],
-     ["offline-text", "openai"]].map do |id, provider|
+    chat_models = [["gpt-4o", "openai"], ["claude-sonnet-4", "anthropic"], ["gemini-2.5-flash", "gemini"],
+                   ["offline-text", "openai"]].map do |id, provider|
       RubyLLM::Model.new(id:, provider:, name: id, max_output_tokens: 8192,
                          modalities: { input: ["text"], output: ["text"] },
                          capabilities: id == "offline-text" ? [] : ["structured_output"])
     end
+    chat_models << RubyLLM::Model.new(id: "jev-latest", provider: "typesafe", name: "jev-latest",
+                                      modalities: { input: ["text"], output: ["judgment"] }, capabilities: ["judgment"])
   end
 end

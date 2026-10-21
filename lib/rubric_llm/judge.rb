@@ -42,13 +42,31 @@ module RubricLLM
       @config = config
     end
 
+    # True when the configured model answers typed judgments (for example
+    # TypeSafe's Jev) instead of chat. Metrics use RubyLLM.judge for these models.
+    def judgment?
+      key = [config.judge_model, config.judge_provider]
+      return @judgment if @judgment_key == key
+
+      @judgment = begin
+        RubyLLM.models.find(config.judge_model, provider: config.judge_provider).supports?(:judgment)
+      rescue RubyLLM::ModelNotFoundError
+        # Local providers such as Ollama accept chat models missing from the registry.
+        false
+      end
+      @judgment_key = key
+      @judgment
+    rescue StandardError => e
+      raise wrap_error(e)
+    end
+
     # Send a prompt to the judge LLM and return the parsed JSON response.
     # Retries transient failures with exponential backoff.
     def call(system_prompt:, user_prompt:)
       config.validate!
-      attempts = 0
-      begin
-        attempts += 1
+      raise JudgeError, "Judge model #{config.judge_model} answers judgments; this metric requires a chat model" if judgment?
+
+      with_retries do
         chat = RubyLLM.chat(model: config.judge_model, provider: config.judge_provider)
         chat.with_temperature(config.temperature)
         chat.with_max_output_tokens(config.max_tokens)
@@ -59,11 +77,19 @@ module RubricLLM
         chat.with_instructions(full_system_prompt)
         response = chat.ask(user_prompt)
         validate_response!(parse_json(response.content))
-      rescue StandardError => e
-        raise wrap_error(e) unless transient?(e) && attempts <= config.max_retries
+      end
+    end
 
-        sleep(config.retry_base_delay * (2**(attempts - 1)))
-        retry
+    # Ask a judgment model typed questions about the input and return the
+    # RubyLLM::Judgment. Questions use RubyLLM's Hash form, keyed by name.
+    # Retries transient failures with exponential backoff.
+    def judge(input, questions:)
+      config.validate!
+      raise JudgeError, "Judge model #{config.judge_model} does not answer judgments" unless judgment?
+
+      questions = questions.transform_values { |question| with_custom_instructions(question) }
+      with_retries do
+        RubyLLM.judge(input, questions:, model: config.judge_model, provider: config.judge_provider)
       end
     end
 
@@ -88,6 +114,19 @@ module RubricLLM
     end
 
     private
+
+    def with_retries
+      attempts = 0
+      begin
+        attempts += 1
+        yield
+      rescue StandardError => e
+        raise wrap_error(e) unless transient?(e) && attempts <= config.max_retries
+
+        sleep(config.retry_base_delay * (2**(attempts - 1)))
+        retry
+      end
+    end
 
     def transient?(error)
       TRANSIENT_ERRORS.any? { |klass| error.is_a?(klass) }
@@ -129,6 +168,20 @@ module RubricLLM
       return base_prompt unless config.custom_prompt
 
       "#{base_prompt}\n\nAdditional instructions:\n#{config.custom_prompt}"
+    end
+
+    # Text instructions get the custom prompt appended as for chat; structured
+    # instructions keep their shape and carry it alongside.
+    def with_custom_instructions(question)
+      question = question.transform_keys(&:to_sym)
+      return question unless config.custom_prompt
+
+      instructions = question[:instructions]
+      question.merge(instructions: case instructions
+                                   when nil then config.custom_prompt
+                                   when String then build_system_prompt(instructions)
+                                   else { instructions:, additional_instructions: config.custom_prompt }
+                                   end)
     end
   end
 end

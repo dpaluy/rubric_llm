@@ -16,9 +16,13 @@ module RubricLLM
         }
       PROMPT
 
+      # A chunk counts as relevant when the judgment model gives it at least this probability.
+      JUDGMENT_RELEVANCE_THRESHOLD = 0.5
+
       def call(question:, context: [], **)
         context_chunks = Base.normalize_context(context)
         return { score: nil, details: { error: "No context provided" } } if context_chunks.empty?
+        return judgment_call(question, context_chunks) if judgment?
 
         user_prompt = <<~PROMPT
           Question: #{question}
@@ -34,6 +38,20 @@ module RubricLLM
       end
 
       private
+
+      def judgment_call(question, context_chunks)
+        names = context_chunks.each_index.map { |index| :"context_#{index + 1}" }
+        questions = names.to_h do |name|
+          [name, { type: :probability, instructions: "Is #{name} useful for answering the question?" }]
+        end
+        answers = judgment_eval({ question:, contexts: names.zip(context_chunks).to_h }, questions)
+        context_scores = answers.values.each_with_index.map do |answer, index|
+          probability = probability_of(answer)
+          { "index" => index + 1, "relevant" => probability >= JUDGMENT_RELEVANCE_THRESHOLD, "probability" => probability }
+        end
+
+        { score: fraction(context_scores, "relevant"), details: { backend: :judgment, context_scores: } }
+      end
 
       def normalize(result, count)
         context_scores = checked_items(result, "context_scores", label: "context scores", count:, value_key: "relevant", text_key: "reason")

@@ -22,6 +22,16 @@ class TestAssertions < Minitest::Test
     end
   end
 
+  def test_assert_faithful_failure_reports_judgment_details
+    stub_judgment({ faithfulness: fake_score(2, levels: 5) })
+
+    error = assert_raises(Minitest::Assertion) do
+      assert_faithful "Partly supported", ["Paris is the capital."], question: "What is the capital?"
+    end
+
+    assert_includes error.message, "Judgment probabilities: {2 => 1.0}, confidence: 0.8"
+  end
+
   def test_assert_relevant_passes
     stub_judge_response('{"score": 0.85, "reasoning": "relevant"}')
 

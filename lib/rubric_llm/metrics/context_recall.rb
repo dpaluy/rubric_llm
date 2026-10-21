@@ -18,11 +18,22 @@ module RubricLLM
         }
       PROMPT
 
+      JUDGMENT_INSTRUCTIONS = "What share of the distinct facts in the ground truth do the contexts support?"
+      JUDGMENT_LEVELS = [
+        "No ground truth facts are covered by the contexts",
+        "Few ground truth facts are covered by the contexts",
+        "About half of the ground truth facts are covered by the contexts",
+        "Most ground truth facts are covered by the contexts",
+        "Every ground truth fact is covered by the contexts"
+      ].freeze
+
       def call(context: [], ground_truth: nil, **)
         return { score: nil, details: { error: "No ground truth provided" } } if ground_truth.nil?
 
         context_chunks = Base.normalize_context(context)
         return { score: nil, details: { error: "No context provided" } } if context_chunks.empty?
+
+        return score_judgment({ contexts: context_chunks, ground_truth: }, name: :context_recall) if judgment?
 
         user_prompt = <<~PROMPT
           Contexts:

@@ -5,6 +5,19 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [Unreleased]
+
+### Added
+
+- Support judgment models such as TypeSafe's Jev (`judge_provider: :typesafe`, `judge_model: "jev-latest"`), detected from the RubyLLM model registry's `judgment` capability. Built-in metrics ask typed judgment questions through `RubyLLM.judge`: score levels for relevance, correctness, factual accuracy, faithfulness, and context recall, and one probability per chunk for context precision. Details report `backend: :judgment` with probabilities and confidence instead of reasoning and item lists
+- `Metrics::Judgment` base class for custom metrics declared with a single `score` or `probability` question. Instantiating one without a question raises `ArgumentError`; malformed judgment answers raise `JudgeError`
+- Failed Minitest assertions with a judgment model report the judgment's probabilities and confidence
+- `Judge#judgment?` and `Judge#judge(input, questions:)`, with the same retry and error handling as `Judge#call`
+
+### Changed
+
+- `Judge#call` raises `JudgeError` when the configured model is a judgment model, so chat-only custom metrics report a clear error
+
 ## [0.9.0] - 2026-10-14
 
 ### Changed

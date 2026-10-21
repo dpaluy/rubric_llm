@@ -20,8 +20,18 @@ module RubricLLM
         }
       PROMPT
 
+      JUDGMENT_INSTRUCTIONS = "Do the factual claims in the candidate answer contradict the reference answer? " \
+                              "Do not penalize missing reference facts or claims the reference does not settle."
+      JUDGMENT_LEVELS = [
+        "Major contradictions undermine the answer",
+        "Minor contradictions affect part of the answer",
+        "No contradictions with the reference"
+      ].freeze
+
       def call(answer:, ground_truth: nil, **)
         return { score: nil, details: { error: "No ground truth provided" } } if ground_truth.nil?
+
+        return score_judgment({ candidate_answer: answer, reference_answer: ground_truth }, name: :factual_accuracy) if judgment?
 
         user_prompt = <<~PROMPT
           Candidate Answer: #{answer}

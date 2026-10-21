@@ -4,10 +4,14 @@ $LOAD_PATH.unshift File.expand_path("../lib", __dir__)
 require "json"
 require "rubric_llm"
 require "ruby_llm/chat"
+# Autoload the real classes the stub contract compares against before RubyLLM is replaced.
+[RubyLLM::Models, RubyLLM::Score, RubyLLM::Probability].each(&:name)
 require "minitest/autorun"
 
 # Stub for RubyLLM chat that returns predictable JSON responses.
 module RubyLLMStub
+  ModelNotFoundError = RubyLLM::ModelNotFoundError
+
   class FakeModel
     attr_reader :capabilities
 
@@ -92,6 +96,61 @@ module RubyLLMStub
     end
   end
 
+  FakeProbability = Struct.new(:probability, keyword_init: true) do
+    def type = :probability
+  end
+
+  FakeScore = Struct.new(:score, :levels, :probabilities, :confidence, keyword_init: true) do
+    def type = :score
+  end
+
+  class FakeJudgment
+    attr_reader :answers
+
+    def initialize(answers)
+      @answers = answers.transform_keys(&:to_s)
+    end
+
+    def [](name)
+      answers[name.to_s]
+    end
+  end
+
+  # Answers RubyLLM.judge calls. Answers are keyed by question name; unknown
+  # questions are left unanswered.
+  class FakeJudge
+    attr_reader :calls
+
+    def initialize(answers: {}, fail_times: 0, error_class: RuntimeError)
+      @answers = answers
+      @fail_times = fail_times
+      @error_class = error_class
+      @calls = []
+    end
+
+    def call(input, questions:, **)
+      @calls << { input:, questions:, ** }
+      raise @error_class, "transient failure" if @calls.size <= @fail_times
+
+      answers = @answers.transform_keys(&:to_s)
+      FakeJudgment.new(answers.slice(*questions.keys.map(&:to_s)))
+    end
+
+    def last_call
+      calls.last
+    end
+  end
+
+  class FakeModels
+    attr_accessor :model, :error
+
+    def find(_model_id, provider: nil, config: nil) # rubocop:disable Lint/UnusedMethodArgument
+      raise error if error
+
+      model || FakeModel.new
+    end
+  end
+
   def self.chat(*, **, &)
     @fake_chat || FakeChat.new
   end
@@ -100,8 +159,28 @@ module RubyLLMStub
     @fake_chat = chat
   end
 
+  def self.judge(input = nil, **)
+    raise "RubyLLMStub.fake_judge is not set" unless @fake_judge
+
+    @fake_judge.call(input, **)
+  end
+
+  def self.fake_judge=(judge)
+    @fake_judge = judge
+  end
+
+  def self.fake_judge
+    @fake_judge
+  end
+
+  def self.models
+    @models ||= FakeModels.new
+  end
+
   def self.reset!
     @fake_chat = nil
+    @fake_judge = nil
+    @models = nil
   end
 end
 
@@ -126,5 +205,20 @@ module TestSetup
   def stub_judge_response(json_string)
     chat = RubyLLMStub::FakeChat.new(response_content: json_string)
     RubyLLMStub.fake_chat = chat
+  end
+
+  # Configure a judgment model (such as TypeSafe's Jev) that answers with +answers+.
+  def stub_judgment(answers = {}, **)
+    RubyLLMStub.models.model = RubyLLMStub::FakeModel.new(capabilities: ["judgment"])
+    RubyLLMStub.fake_judge = RubyLLMStub::FakeJudge.new(answers:, **)
+  end
+
+  def fake_score(score, levels: 3)
+    RubyLLMStub::FakeScore.new(score:, levels: Array.new(levels) { |i| "level #{i}" },
+                               probabilities: { score.round => 1.0 }, confidence: 0.8)
+  end
+
+  def fake_probability(probability)
+    RubyLLMStub::FakeProbability.new(probability:)
   end
 end
