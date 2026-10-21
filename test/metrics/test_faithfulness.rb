@@ -89,6 +89,23 @@ class TestFaithfulness < Minitest::Test
     assert_nil chat.last_user_prompt
   end
 
+  def test_judgment_model_requires_a_chat_model
+    stub_judgment
+    metric = RubricLLM::Metrics::Faithfulness.new(judge: RubricLLM::Judge.new(config: RubricLLM.config))
+
+    error = assert_raises(RubricLLM::JudgeError) { metric.call(question: "q", answer: "a", context: ["Paris is in France."]) }
+    assert_includes error.message, "requires a chat model"
+    assert_empty RubyLLMStub.fake_judge.calls
+  end
+
+  def test_judgment_model_keeps_context_guard
+    stub_judgment
+    metric = RubricLLM::Metrics::Faithfulness.new(judge: RubricLLM::Judge.new(config: RubricLLM.config))
+
+    assert_nil metric.call(question: "q", answer: "a", context: [])[:score]
+    assert_empty RubyLLMStub.fake_judge.calls
+  end
+
   private
 
   def no_retry_config

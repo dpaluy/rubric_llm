@@ -53,6 +53,28 @@ class TestRubyLLMStubContract < Minitest::Test
     assert_includes errors, "parameters differ for with_instructions"
   end
 
+  def test_stub_module_methods_exist_on_real_ruby_llm
+    %i[chat judge models].each do |method_name|
+      assert_respond_to RubyLLMReal, method_name
+    end
+  end
+
+  def test_stub_model_lookup_matches_real_registry
+    stub_parameters = RubyLLMStub::FakeModels.instance_method(:find).parameters.map do |type, name|
+      [type, name.to_s.delete_prefix("_").to_sym]
+    end
+
+    assert_equal RubyLLMReal::Models.instance_method(:find).parameters, stub_parameters
+  end
+
+  def test_stub_judgment_answers_match_real_readers
+    { RubyLLMReal::Score => RubyLLMStub::FakeScore, RubyLLMReal::Probability => RubyLLMStub::FakeProbability }.each do |real, stub|
+      real_readers = real.public_instance_methods(false) & %i[score levels probabilities confidence probability type]
+
+      real_readers.each { |reader| assert stub.method_defined?(reader), "#{stub} is missing #{reader}" }
+    end
+  end
+
   private
 
   def contract_errors(stub_class: RubyLLMStub::FakeChat, real_class: RubyLLMReal::Chat)

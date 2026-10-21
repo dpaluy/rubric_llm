@@ -58,6 +58,15 @@ class TestFactualAccuracy < Minitest::Test
     assert_includes error.message, "empty"
   end
 
+  def test_judgment_model_requires_a_chat_model
+    stub_judgment
+    metric = RubricLLM::Metrics::FactualAccuracy.new(judge: RubricLLM::Judge.new(config: RubricLLM.config))
+
+    error = assert_raises(RubricLLM::JudgeError) { metric.call(question: "q", answer: "Paris", ground_truth: "Paris") }
+    assert_includes error.message, "requires a chat model"
+    assert_empty RubyLLMStub.fake_judge.calls
+  end
+
   private
 
   def no_retry_config

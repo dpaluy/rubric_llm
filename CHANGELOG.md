@@ -5,6 +5,20 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [Unreleased]
+
+### Added
+
+- Support judgment (decision) models such as TypeSafe's Jev (`judge_provider: :typesafe`, `judge_model: "jev-latest"`), detected from the RubyLLM model registry as judgment-only models. Chat models that also offer judgments, such as OpenAI's `gpt-6-luna`, keep using chat; models missing from the registry use chat only for local providers such as Ollama. Relevance and correctness ask a score question on ordered levels; context precision asks one probability per chunk. Details report `backend: :judgment` with raw probabilities and confidence instead of reasoning. Faithfulness, factual accuracy, and context recall extract and check claims, so they require a chat model and report a "requires a chat model" error with a judgment model
+- `judgment_threshold` configuration and `RUBRIC_JUDGMENT_THRESHOLD` environment variable (default `0.5`): the probability cutoff for per-chunk judgment answers in context precision
+- `Metrics::Judgment` base class for custom metrics declared with a single `score` or `probability` question. Instantiating one without a question raises `ArgumentError`; malformed judgment answers raise `JudgeError`
+- Failed Minitest assertions with a judgment model report the judgment's probabilities and confidence
+- `Judge#judgment?` and `Judge#judge(input, questions:)`, with the same retry and error handling as `Judge#call`
+
+### Changed
+
+- `Judge#call` raises `JudgeError` when the configured model is a judgment model, so chat-only custom metrics report a clear error
+
 ## [0.9.0] - 2026-10-14
 
 ### Changed

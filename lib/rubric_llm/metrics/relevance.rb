@@ -17,7 +17,16 @@ module RubricLLM
         }
       PROMPT
 
+      JUDGMENT_INSTRUCTIONS = "How directly does the answer address the question? Judge relevance only, not correctness."
+      JUDGMENT_LEVELS = [
+        "Does not address the question",
+        "Addresses only part of the question or is mostly tangential",
+        "Directly addresses all parts of the question"
+      ].freeze
+
       def call(question:, answer:, **)
+        return score_judgment({ question:, answer: }, name: :relevance) if judgment?
+
         user_prompt = <<~PROMPT
           Question: #{question}
 

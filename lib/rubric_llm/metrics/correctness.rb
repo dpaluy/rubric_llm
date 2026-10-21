@@ -18,8 +18,18 @@ module RubricLLM
         }
       PROMPT
 
+      JUDGMENT_INSTRUCTIONS = "How correct is the answer to the question compared to the ground truth? " \
+                              "Consider semantic equivalence and ignore reference details the question does not require."
+      JUDGMENT_LEVELS = [
+        "Wrong or does not answer the question",
+        "Partly correct, but misses required information or includes a material error",
+        "Fully answers the question with no material errors"
+      ].freeze
+
       def call(question:, answer:, ground_truth: nil, **)
         return { score: nil, details: { error: "No ground truth provided" } } if ground_truth.nil?
+
+        return score_judgment({ question:, answer:, ground_truth: }, name: :correctness) if judgment?
 
         user_prompt = <<~PROMPT
           Question: #{question}

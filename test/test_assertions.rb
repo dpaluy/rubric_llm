@@ -22,6 +22,16 @@ class TestAssertions < Minitest::Test
     end
   end
 
+  def test_assert_correct_failure_reports_judgment_details
+    stub_judgment({ correctness: fake_score(1) })
+
+    error = assert_raises(Minitest::Assertion) do
+      assert_correct "Lyon", "Paris", question: "What is the capital of France?"
+    end
+
+    assert_includes error.message, "Judgment probabilities: {1 => 1.0}, confidence: 0.8"
+  end
+
   def test_assert_relevant_passes
     stub_judge_response('{"score": 0.85, "reasoning": "relevant"}')
 

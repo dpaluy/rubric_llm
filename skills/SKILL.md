@@ -71,6 +71,12 @@ Use `RubricLLM.configure { |config| ... }` for application-wide settings. Pass a
 
 RubyLLM 2 selects the OpenAI Responses protocol for supported models. For a gateway that only supports Chat Completions, configure `RubyLLM.configure { |config| config.openai_protocol = :chat_completions }`.
 
+### Judgment models
+
+TypeSafe's Jev (`judge_provider: :typesafe`, `judge_model: "jev-latest"`, credential `typesafe_api_key`) is a judgment (decision) model: it answers typed questions through `RubyLLM.judge` and does not chat. RubricLLM detects judgment-only models from the RubyLLM registry (models whose only output is `judgment`); chat models that also offer judgments, such as OpenAI's, keep using chat. Models missing from the registry use chat only for local providers such as Ollama. Relevance, correctness, and context precision then use judgment questions; faithfulness, factual accuracy, and context recall require a chat model and report an error. Details carry `backend: :judgment`, probabilities, and confidence instead of reasoning. Chat-only settings (`temperature`, `max_tokens`, `thinking_effort`) do not apply.
+
+Do not reuse default thresholds with judgment scores. Choose `judgment_threshold` (the per-chunk cutoff for context precision) and assertion `threshold:` values on hand-labeled samples, check calibration before treating scores as confidence, and do not mix chat and judgment scores in one comparison.
+
 ## Select metrics and score answers
 
 All judge scores are between 0.0 and 1.0, with higher scores indicating better results. Pass metric classes, not names, in `metrics:`.
@@ -174,7 +180,7 @@ Faithfulness and hallucination assertions require non-empty context. These asser
 
 For RSpec, require `rubric_llm/rspec` and include `RubricLLM::RSpecMatchers`. Matchers include `be_faithful_to(context)`, `be_correct_for(ground_truth)`, `be_relevant_to(question)`, and `hallucinate_from(context)`.
 
-Custom metrics subclass `RubricLLM::Metrics::Base`, implement `call`, and return `{ score: numeric_score, details: {} }`. Use `judge_eval(system_prompt:, user_prompt:)` for judged metrics; its response must contain a numeric `score` between 0.0 and 1.0. Prefer deterministic checks when no judge is needed.
+Custom metrics subclass `RubricLLM::Metrics::Base`, implement `call`, and return `{ score: numeric_score, details: {} }`. Use `judge_eval(system_prompt:, user_prompt:)` for judged metrics; its response must contain a numeric `score` between 0.0 and 1.0. Prefer deterministic checks when no judge is needed. With a judgment model, subclass `RubricLLM::Metrics::Judgment` and declare one `score "instructions", levels` or `probability "instructions", yes:, no:` question; `judge_eval` requires a chat model.
 
 ## References
 

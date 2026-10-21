@@ -64,4 +64,13 @@ class TestContextRecall < Minitest::Test
 
     assert_nil result[:score]
   end
+
+  def test_judgment_model_requires_a_chat_model
+    stub_judgment
+    metric = RubricLLM::Metrics::ContextRecall.new(judge: RubricLLM::Judge.new(config: RubricLLM.config))
+
+    error = assert_raises(RubricLLM::JudgeError) { metric.call(question: "q", answer: "a", context: ["Paris is the capital."], ground_truth: "Paris") }
+    assert_includes error.message, "requires a chat model"
+    assert_empty RubyLLMStub.fake_judge.calls
+  end
 end

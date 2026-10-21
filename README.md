@@ -116,6 +116,44 @@ The default is `nil`: RubricLLM does not call `with_thinking`, so existing RubyL
 
 Higher effort does not guarantee better scores. Compare results on your evaluation dataset. For providers that count reasoning tokens toward the output limit, increase `max_tokens` if the default 4,096 tokens leaves too little room for the JSON response.
 
+### Judgment Models (TypeSafe Jev)
+
+Judgment models such as TypeSafe's Jev (`jev-latest`, `jev-preview`) do not chat. They answer typed questions through RubyLLM's [`RubyLLM.judge`](https://rubyllm.com/). RubricLLM detects judgment-only models from the RubyLLM model registry (models whose only output is `judgment`) and uses judgment questions instead of chat prompts. Chat models that also offer judgments, such as OpenAI's `gpt-6-luna`, keep using chat. A model missing from the registry is treated as chat only for local providers such as Ollama; otherwise RubricLLM reports an unknown model:
+
+```ruby
+RubyLLM.configure do |c|
+  c.typesafe_api_key = ENV["TYPESAFE_API_KEY"]
+end
+
+RubricLLM.configure do |c|
+  c.judge_provider = :typesafe
+  c.judge_model = "jev-latest"
+end
+```
+
+Other judgment-only models work the same way when RubyLLM supports them. Only TypeSafe's protocol is covered by RubricLLM's tests.
+
+Decision models are a low-cost option for narrow classification questions. They are weaker on tasks that need reasoning, such as extracting and checking individual claims ([Decision Models for Evals](https://hamel.dev/blog/posts/decision-model-evals)). RubricLLM therefore supports them only for metrics that fit that shape:
+
+| Metric | Judgment question | Score |
+|--------|-------------------|-------|
+| `relevance`, `correctness` | One score against three ordered levels | Probability-weighted level, normalized to 0.0-1.0 |
+| `context_precision` | One yes/no probability per context chunk | Fraction of chunks with probability >= `judgment_threshold` |
+| `faithfulness`, `factual_accuracy`, `context_recall` | Not supported: these metrics extract and check claims | `nil`, with a "requires a chat model" error |
+
+Judgment models do not explain their answers. Metric details contain `backend: :judgment` with the raw `probabilities` and `confidence` (or `probability`, or per-chunk `context_scores` and the `threshold` used) instead of `reasoning`. Keep these raw values: they let you retune thresholds without new model calls.
+
+#### Choose thresholds on labeled data
+
+Judgment scores are not on the same scale as chat scores, and neither the API's conventional 0.5 cutoff nor RubricLLM's default assertion threshold (0.8) has been validated for your data:
+
+- Label a set of samples by hand, score them, and choose thresholds that meet your precision and recall requirements. Decide which errors cost more: missed failures or false alarms.
+- Set the per-chunk cutoff for `context_precision` with `judgment_threshold` (or `RUBRIC_JUDGMENT_THRESHOLD`), and pass explicit `threshold:` values to assertions.
+- Check calibration before you read a score as a confidence: among samples scored near 0.8, about 80% should actually pass. Recheck after changing models or prompts.
+- Compare scores within one backend; do not mix chat and judgment scores in one comparison.
+
+`custom_prompt` is appended to each judgment question's text instructions; structured (Hash or Array) instructions keep their shape and receive it as `additional_instructions`. `temperature`, `max_tokens`, and `thinking_effort` do not apply to judgment requests. Retries and error handling are the same as for chat judges. Metrics that call `judge_eval`, including the claim-based built-in metrics, need a chat model; with a judgment model, evaluation reports them as `nil` with an error and direct calls raise `JudgeError`.
+
 ### Environment Variables
 
 All config fields can be set via environment variables:
@@ -130,6 +168,7 @@ All config fields can be set via environment variables:
 | `RUBRIC_MAX_RETRIES` | `2` | Max retries on transient failures |
 | `RUBRIC_RETRY_BASE_DELAY` | `1.0` | Base delay (seconds) for exponential backoff |
 | `RUBRIC_CONCURRENCY` | `1` | Thread pool size for batch evaluation |
+| `RUBRIC_JUDGMENT_THRESHOLD` | `0.5` | Probability cutoff for per-chunk judgment answers (`context_precision`) |
 
 ```ruby
 # Reads all RUBRIC_* env vars automatically
@@ -215,6 +254,27 @@ result = RubricLLM.evaluate(
 )
 result.scores[:tone_metric]  # => 0.85
 ```
+
+For judgment models, subclass `Metrics::Judgment` and declare one question. A score is normalized from its level indexes onto 0.0-1.0, worst level first; a probability scores the probability of yes:
+
+```ruby
+class ToneMetric < RubricLLM::Metrics::Judgment
+  score "How professional is the tone?", ["Rude", "Neutral", "Professional"]
+end
+
+class PolitenessMetric < RubricLLM::Metrics::Judgment
+  probability "Is the answer polite?", yes: "Courteous wording", no: "Dismissive or rude wording"
+
+  private
+
+  # Defaults to the question, answer, non-empty context, and ground truth.
+  def judgment_input(answer:, **)
+    answer
+  end
+end
+```
+
+`Metrics::Judgment` subclasses require a judgment model. Instantiating one without a declared question raises `ArgumentError`. Malformed judgment answers raise `JudgeError`, so evaluation records `nil` with an error. Failed Minitest assertions include the judgment's probabilities and confidence.
 
 ### Retrieval Metrics
 

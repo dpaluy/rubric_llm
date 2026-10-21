@@ -53,6 +53,7 @@ module RubricLLM
     def failure_details(result)
       details = result[:details]
       return "" unless details.is_a?(Hash)
+      return " Judgment #{details.except(:backend).map { |key, value| "#{key}: #{value}" }.join(", ")}" if details[:backend] == :judgment
 
       if details[:claims]
         unsupported = details[:claims]&.select { |c| c.is_a?(Hash) && c["supported"] == false }

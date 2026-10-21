@@ -27,4 +27,22 @@ class TestCorrectness < Minitest::Test
     assert_nil result[:score]
     assert_equal "No ground truth provided", result[:details][:error]
   end
+
+  def test_judgment_model_scores_correctness_levels
+    stub_judgment({ correctness: fake_score(2) })
+    metric = RubricLLM::Metrics::Correctness.new(judge: RubricLLM::Judge.new(config: RubricLLM.config))
+    result = metric.call(question: "Capital?", answer: "Paris", ground_truth: "Paris")
+
+    assert_in_delta 1.0, result[:score]
+    assert_equal({ question: "Capital?", answer: "Paris", ground_truth: "Paris" }, RubyLLMStub.fake_judge.last_call[:input])
+  end
+
+  def test_judgment_model_keeps_ground_truth_guard
+    stub_judgment
+    metric = RubricLLM::Metrics::Correctness.new(judge: RubricLLM::Judge.new(config: RubricLLM.config))
+    result = metric.call(question: "q", answer: "a")
+
+    assert_nil result[:score]
+    assert_empty RubyLLMStub.fake_judge.calls
+  end
 end

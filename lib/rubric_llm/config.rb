@@ -3,12 +3,12 @@
 module RubricLLM
   class Config
     attr_accessor :judge_model, :judge_provider, :temperature, :max_tokens, :custom_prompt,
-                  :max_retries, :retry_base_delay, :concurrency, :thinking_effort
+                  :max_retries, :retry_base_delay, :concurrency, :thinking_effort, :judgment_threshold
 
     def initialize(judge_model: nil, judge_provider: nil, # rubocop:disable Metrics/ParameterLists
                    temperature: Float(ENV.fetch("RUBRIC_TEMPERATURE", "0.0")), max_tokens: nil,
                    custom_prompt: nil, max_retries: nil, retry_base_delay: nil, concurrency: nil, validate: false,
-                   thinking_effort: ENV.fetch("RUBRIC_THINKING_EFFORT", nil))
+                   thinking_effort: ENV.fetch("RUBRIC_THINKING_EFFORT", nil), judgment_threshold: nil)
       @judge_model = judge_model || ENV.fetch("RUBRIC_JUDGE_MODEL", "gpt-4o")
       @judge_provider = (judge_provider || ENV.fetch("RUBRIC_JUDGE_PROVIDER", "openai")).to_sym
       @temperature = temperature
@@ -18,6 +18,7 @@ module RubricLLM
       @max_retries = max_retries || Integer(ENV.fetch("RUBRIC_MAX_RETRIES", "2"))
       @retry_base_delay = retry_base_delay || Float(ENV.fetch("RUBRIC_RETRY_BASE_DELAY", "1.0"))
       @concurrency = concurrency || Integer(ENV.fetch("RUBRIC_CONCURRENCY", "1"))
+      @judgment_threshold = judgment_threshold || Float(ENV.fetch("RUBRIC_JUDGMENT_THRESHOLD", "0.5"))
       validate! if validate
     end
 
@@ -34,6 +35,7 @@ module RubricLLM
       validate_max_retries
       validate_retry_base_delay
       validate_concurrency
+      validate_judgment_threshold
       self
     end
 
@@ -47,7 +49,8 @@ module RubricLLM
         custom_prompt:,
         max_retries:,
         retry_base_delay:,
-        concurrency:
+        concurrency:,
+        judgment_threshold:
       }
     end
 
@@ -100,6 +103,12 @@ module RubricLLM
       return if concurrency.is_a?(Integer) && concurrency.positive?
 
       raise ConfigurationError, "concurrency must be a positive integer"
+    end
+
+    def validate_judgment_threshold
+      return if judgment_threshold.is_a?(Numeric) && judgment_threshold.between?(0.0, 1.0)
+
+      raise ConfigurationError, "judgment_threshold must be between 0.0 and 1.0"
     end
   end
 end
